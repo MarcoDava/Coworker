@@ -1,0 +1,42 @@
+{
+  "name": "coworker",
+  "version": "0.1.0",
+  "description": "Virtual co-working environment with a friend",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "signaling": "tsx server/signaling/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
+    "active-win": "^8.2.1",
+    "buffer": "^6.0.3",
+    "discord-rpc": "^4.0.1",
+    "process": "^0.11.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "simple-peer": "^9.11.1",
+    "three": "^0.169.0",
+    "ws": "^8.18.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/discord-rpc": "^4.0.9",
+    "@types/node": "^22.7.5",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@types/simple-peer": "^9.11.8",
+    "@types/three": "^0.169.0",
+    "@types/ws": "^8.5.12",
+    "@vitejs/plugin-react": "^4.3.2",
+    "electron": "^32.2.0",
+    "electron-vite": "^2.3.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.9"
+  }
+}

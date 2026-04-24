@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Coworker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #0b0b12;
+        --bg-2: #12121c;
+        --panel: rgba(22, 22, 34, 0.72);
+        --panel-solid: #16161f;
+        --border: rgba(255, 255, 255, 0.08);
+        --border-strong: rgba(255, 255, 255, 0.14);
+        --text: #eaeaf0;
+        --text-dim: #8b8b9a;
+        --text-mute: #5d5d6e;
+        --accent: #7c6cff;
+        --accent-2: #5aa8ff;
+        --good: #7ae0a3;
+        --bad: #ff7a8a;
+        --warn: #ffc46b;
+        --radius: 12px;
+        --radius-sm: 8px;
+        --shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+      }
+      html, body, #root {
+        margin: 0;
+        height: 100%;
+        background:
+          radial-gradient(1200px 600px at 80% -10%, rgba(124, 108, 255, 0.18), transparent 60%),
+          radial-gradient(900px 500px at -10% 110%, rgba(90, 168, 255, 0.12), transparent 60%),
+          var(--bg);
+        color: var(--text);
+        font-family: 'Inter', system-ui, -apple-system, Segoe UI, sans-serif;
+        font-feature-settings: 'cv11', 'ss01';
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        appearance: none;
+        border: 1px solid var(--border-strong);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        padding: 9px 14px;
+        border-radius: var(--radius-sm);
+        font: inherit;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+      }
+      button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.22); }
+      button:active:not(:disabled) { transform: translateY(1px); }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      button.primary {
+        background: linear-gradient(180deg, #8577ff 0%, #6a5bf0 100%);
+        border-color: #6a5bf0;
+        color: #fff;
+      }
+      button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #9485ff 0%, #7a6bff 100%); }
+      button.ghost { background: transparent; }
+      input, select, textarea {
+        appearance: none;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 9px 12px;
+        border-radius: var(--radius-sm);
+        font: inherit;
+        outline: none;
+        transition: border-color 120ms ease, background 120ms ease;
+      }
+      input:focus, select:focus, textarea:focus {
+        border-color: var(--accent);
+        background: rgba(124, 108, 255, 0.08);
+      }
+      label { color: var(--text-dim); font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+      label > input, label > select, label > textarea { color: var(--text); }
+      h1, h2, h3 { letter-spacing: -0.02em; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.14); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
