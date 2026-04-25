@@ -123,9 +123,9 @@ function LibrarianBot() {
     const shelfSide = glide > 0 ? 1 : -1;
     const picking = Math.sin(t * 1.2) > 0.82;
 
-    bot.position.x = glide * 4.4;
+    bot.position.x = glide * 3.2;
     bot.position.y = 2.7 + Math.sin(t * 2.2) * 0.08;
-    bot.position.z = -5.05 + Math.cos(t * 0.7) * 0.12;
+    bot.position.z = -4.55 + Math.cos(t * 0.7) * 0.12;
     bot.rotation.y = THREE.MathUtils.lerp(bot.rotation.y, shelfSide > 0 ? -0.45 : 0.45, 0.08);
     bot.rotation.z = Math.sin(t * 2.2) * 0.08;
 
@@ -139,7 +139,7 @@ function LibrarianBot() {
   });
 
   return (
-    <group ref={botRef} position={[0, 2.7, -5.05]}>
+    <group ref={botRef} position={[0, 2.7, -4.55]}>
       <Float speed={1.2} floatIntensity={0.18} rotationIntensity={0.15}>
         <RoundedBox args={[0.34, 0.26, 0.28]} radius={0.11} smoothness={4} castShadow>
           <meshToonMaterial color="#99b9d8" />
