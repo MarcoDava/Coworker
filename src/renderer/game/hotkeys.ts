@@ -7,6 +7,13 @@ export type HotkeyConfig = {
 };
 
 export const DEFAULT_HOTKEYS: HotkeyConfig = { peek: 'Alt', callout: ' ', pause: 'p' };
+export const LOOK_MODIFIER_OPTIONS = ['Alt', 'Shift', 'Control', 'Meta', 'CapsLock'] as const;
+export type LookModifier = (typeof LOOK_MODIFIER_OPTIONS)[number];
+
+function matchesKey(event: KeyboardEvent, key: string) {
+  if (key.length === 1) return event.key.toLowerCase() === key.toLowerCase();
+  return event.key === key;
+}
 
 export function useHotkeys(
   cfg: HotkeyConfig,
@@ -20,12 +27,12 @@ export function useHotkeys(
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (e.key === cfg.peek) handlers.onPeekDown();
-      else if (e.key === cfg.callout) handlers.onCallout();
-      else if (e.key.toLowerCase() === cfg.pause.toLowerCase()) handlers.onPause();
+      if (matchesKey(e, cfg.peek)) handlers.onPeekDown();
+      else if (matchesKey(e, cfg.callout)) handlers.onCallout();
+      else if (matchesKey(e, cfg.pause)) handlers.onPause();
     };
     const up = (e: KeyboardEvent) => {
-      if (e.key === cfg.peek) handlers.onPeekUp();
+      if (matchesKey(e, cfg.peek)) handlers.onPeekUp();
     };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);

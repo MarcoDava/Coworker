@@ -4,6 +4,43 @@ import { startActiveWindowPolling, stopActiveWindowPolling } from './activeWindo
 import { initRichPresence, updateRichPresence, destroyRichPresence } from './rpc';
 
 let mainWindow: BrowserWindow | null = null;
+let screenModeActive = false;
+
+function unregisterScreenModeShortcuts() {
+  globalShortcut.unregister('Escape');
+  globalShortcut.unregister('CommandOrControl+Shift+H');
+}
+
+function registerScreenModeShortcuts() {
+  unregisterScreenModeShortcuts();
+  globalShortcut.register('Escape', () => {
+    mainWindow?.webContents.send('window:screenModeEscape');
+  });
+  globalShortcut.register('CommandOrControl+Shift+H', () => {
+    mainWindow?.webContents.send('window:screenModeToggleHud');
+  });
+}
+
+function setScreenMode(active: boolean) {
+  if (!mainWindow) return;
+  screenModeActive = active;
+
+  if (active) {
+    registerScreenModeShortcuts();
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+    mainWindow.setFocusable(false);
+    mainWindow.blur();
+  } else {
+    unregisterScreenModeShortcuts();
+    mainWindow.setIgnoreMouseEvents(false);
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setVisibleOnAllWorkspaces(false);
+    mainWindow.setFocusable(true);
+    mainWindow.focus();
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -55,6 +92,11 @@ ipcMain.handle('rpc:init', () => initRichPresence());
 ipcMain.handle('rpc:update', (_e, payload: { details: string; state: string; endTimestamp?: number }) =>
   updateRichPresence(payload),
 );
+
+ipcMain.handle('window:setScreenMode', (_e, active: boolean) => {
+  setScreenMode(active);
+  return { active: screenModeActive };
+});
 
 ipcMain.handle('hotkey:registerPeek', (e, accelerator: string) => {
   try {

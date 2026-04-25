@@ -1,3 +1,5 @@
+import { RoundedBox } from '@react-three/drei';
+import type { ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -7,9 +9,10 @@ type Props = {
   stream: MediaStream | null;
   paused?: boolean;
   label?: string;
+  onDoubleClick?: () => void;
 };
 
-export function Laptop({ position, rotationY = 0, stream, paused, label }: Props) {
+export function Laptop({ position, rotationY = 0, stream, paused, label, onDoubleClick }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const texture = useMemo(() => {
     const v = document.createElement('video');
@@ -34,39 +37,48 @@ export function Laptop({ position, rotationY = 0, stream, paused, label }: Props
   }, [stream, paused]);
 
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      {/* desk */}
-      <mesh position={[0, 0.75, 0]} castShadow receiveShadow>
-        <boxGeometry args={[2, 0.1, 1.2]} />
-        <meshStandardMaterial color="#6a4a2a" />
-      </mesh>
-      {/* laptop base */}
-      <mesh position={[0, 0.83, 0]}>
-        <boxGeometry args={[1.2, 0.05, 0.8]} />
-        <meshStandardMaterial color="#1a1a1a" />
-      </mesh>
-      {/* laptop screen */}
+    <group
+      position={position}
+      rotation={[0, rotationY, 0]}
+      onDoubleClick={(event: ThreeEvent<MouseEvent>) => {
+        event.stopPropagation();
+        onDoubleClick?.();
+      }}
+    >
+      <RoundedBox args={[1.24, 0.08, 0.86]} radius={0.07} smoothness={4} position={[0, 0.84, 0]} castShadow receiveShadow>
+        <meshToonMaterial color="#f7f4ef" />
+      </RoundedBox>
+      <RoundedBox args={[1.12, 0.03, 0.7]} radius={0.04} smoothness={3} position={[0, 0.88, 0.02]} castShadow>
+        <meshToonMaterial color="#d7d2ca" />
+      </RoundedBox>
       <group position={[0, 1.25, -0.35]} rotation={[-0.25, 0, 0]}>
-        <mesh>
-          <boxGeometry args={[1.2, 0.8, 0.04]} />
-          <meshStandardMaterial color="#0a0a0a" />
-        </mesh>
-        <mesh position={[0, 0, 0.025]}>
+        <RoundedBox args={[1.2, 0.84, 0.06]} radius={0.07} smoothness={4} castShadow>
+          <meshToonMaterial color="#f7f4ef" />
+        </RoundedBox>
+        <RoundedBox args={[1.04, 0.66, 0.02]} radius={0.03} smoothness={3} position={[0, 0, 0.03]}>
+          <meshToonMaterial color="#243142" />
+        </RoundedBox>
+        <mesh position={[0, 0, 0.04]}>
           <planeGeometry args={[1.1, 0.7]} />
           {paused ? (
-            <meshBasicMaterial color="#222233" />
+            <meshBasicMaterial color="#5e6a7b" />
           ) : stream ? (
-            <meshBasicMaterial map={texture} toneMapped={false} />
+            <meshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
           ) : (
-            <meshBasicMaterial color="#101018" />
+            <meshBasicMaterial color="#6f84a5" />
           )}
         </mesh>
       </group>
       {label && (
-        <mesh position={[0, 1.9, -0.35]}>
-          <planeGeometry args={[0.8, 0.15]} />
-          <meshBasicMaterial color="#eeeeee" transparent opacity={0.1} />
-        </mesh>
+        <group position={[0, 0.98, 0.42]}>
+          <RoundedBox args={[0.5, 0.08, 0.2]} radius={0.04} smoothness={3}>
+            <meshToonMaterial color="#fff8ef" />
+          </RoundedBox>
+          <mesh position={[0, 0.001, 0.11]}>
+            <planeGeometry args={[0.34, 0.08]} />
+            <meshBasicMaterial color={label === 'you' ? '#76a9f3' : '#f2a06f'} transparent opacity={0.9} />
+          </mesh>
+        </group>
       )}
     </group>
   );

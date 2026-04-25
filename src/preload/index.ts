@@ -24,6 +24,20 @@ const api = {
     update: (payload: { details: string; state: string; endTimestamp?: number }) =>
       ipcRenderer.invoke('rpc:update', payload),
   },
+  window: {
+    setScreenMode: (active: boolean): Promise<{ active: boolean }> =>
+      ipcRenderer.invoke('window:setScreenMode', active),
+    onScreenModeEscape: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('window:screenModeEscape', listener);
+      return () => ipcRenderer.off('window:screenModeEscape', listener);
+    },
+    onScreenModeToggleHud: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('window:screenModeToggleHud', listener);
+      return () => ipcRenderer.off('window:screenModeToggleHud', listener);
+    },
+  },
   hotkey: {
     registerPeek: (accelerator: string): Promise<boolean> =>
       ipcRenderer.invoke('hotkey:registerPeek', accelerator),

@@ -29,7 +29,16 @@ export function App() {
   }
 
   if (phase === 'session') {
-    return <Session cfg={cfg} onFinish={() => setPhase('scoreboard')} />;
+    return (
+      <Session
+        cfg={cfg}
+        onFinish={() => setPhase('scoreboard')}
+        onQuit={() => {
+          reset();
+          setPhase('lobby');
+        }}
+      />
+    );
   }
 
   return (
