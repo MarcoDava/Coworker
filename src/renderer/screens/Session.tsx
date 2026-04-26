@@ -4,6 +4,7 @@ import type { LobbyConfig } from './Lobby';
 import { Library } from '../scene/Library';
 import { SpaceStation } from '../scene/SpaceStation';
 import { Train } from '../scene/Train';
+import { Skyscraper } from '../scene/Skyscraper';
 import { Laptop } from '../scene/Laptop';
 import { Avatar } from '../scene/Avatar';
 import { CameraRig, type CameraMode } from '../scene/Camera';
@@ -68,7 +69,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerLeft, setPeerLeft] = useState(false);
   const [musicVolume, setMusicVolume] = useState(0.25);
-  const [sceneEnv, setSceneEnv] = useState<'library' | 'space' | 'train'>('library');
+  const [sceneEnv, setSceneEnv] = useState<'library' | 'space' | 'train' | 'skyscraper'>('library');
 
   const peerRef = useRef<PeerConnection | null>(null);
   const screenModeRef = useRef(false);
@@ -513,6 +514,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         {sceneEnv === 'library' && <Library />}
         {sceneEnv === 'space' && <SpaceStation />}
         {sceneEnv === 'train' && <Train />}
+        {sceneEnv === 'skyscraper' && <Skyscraper />}
         <Laptop
           position={selfLaptop}
           rotationY={0}
@@ -701,12 +703,13 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                   Environment
                   <select
                     value={sceneEnv}
-                    onChange={(e) => setSceneEnv(e.target.value as 'library' | 'space' | 'train')}
+                    onChange={(e) => setSceneEnv(e.target.value as 'library' | 'space' | 'train' | 'skyscraper')}
                     style={menuSelect}
                   >
                     <option value="library">Library</option>
                     <option value="space">Space Station</option>
                     <option value="train">Night Train</option>
+                    <option value="skyscraper">Skyscraper</option>
                   </select>
                 </label>
                 <button

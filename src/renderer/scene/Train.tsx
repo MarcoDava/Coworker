@@ -305,11 +305,11 @@ export function Train() {
         <BenchSeat position={[4.8, 0.14, -3.2]} rotation={[0, Math.PI, 0]} />
 
         {/* Desk top — same footprint as Library, dark wood */}
-        <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.8, -2.1]} castShadow receiveShadow>
+        <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, -2.1]} castShadow receiveShadow>
           <meshToonMaterial color="#3a2210" />
         </RoundedBox>
         {([-2.75, 2.75] as number[]).map((x) => (
-          <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.4, -2.1]} castShadow>
+          <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>
             <meshToonMaterial color="#2a1808" />
           </RoundedBox>
         ))}

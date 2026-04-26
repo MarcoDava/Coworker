@@ -320,17 +320,17 @@ export function SpaceStation() {
       <CeilingFixture position={[2.8, 5.78, -4.2]} />
 
       {/* Desk top */}
-      <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.8, -2.1]} castShadow receiveShadow>
+      <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, -2.1]} castShadow receiveShadow>
         <meshToonMaterial color="#1e2e44" />
       </RoundedBox>
       {/* Desk edge glow strip */}
-      <mesh position={[0, 0.74, -1.22]}>
+      <mesh position={[0, 0.67, -1.22]}>
         <planeGeometry args={[6.1, 0.02]} />
         <meshBasicMaterial color="#00d8ff" transparent opacity={0.6} />
       </mesh>
       {/* Desk legs */}
       {([-2.75, 2.75] as number[]).map((x) => (
-        <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.4, -2.1]} castShadow>
+        <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>
           <meshToonMaterial color="#16222e" />
         </RoundedBox>
       ))}
