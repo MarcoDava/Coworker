@@ -2,6 +2,8 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LobbyConfig } from './Lobby';
 import { Library } from '../scene/Library';
+import { SpaceStation } from '../scene/SpaceStation';
+import { Train } from '../scene/Train';
 import { Laptop } from '../scene/Laptop';
 import { Avatar } from '../scene/Avatar';
 import { CameraRig, type CameraMode } from '../scene/Camera';
@@ -64,6 +66,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [peerIdleSec, setPeerIdleSec] = useState(0);
   const [incomingReason, setIncomingReason] = useState<{ reason: string; calloutTs: number } | null>(null);
   const [pendingReasonUi, setPendingReasonUi] = useState<{ targetApp: string; deadline: number; calloutTs: number } | null>(null);
+  const [sceneEnv, setSceneEnv] = useState<'library' | 'space' | 'train'>('library');
 
   const peerRef = useRef<PeerConnection | null>(null);
   const store = useScoreStore();
@@ -106,7 +109,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     let mounted = true;
     navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 24 }, audio: false }).then((stream) => {
       if (mounted) setLocalStream(stream);
-    });
+    }).catch(() => {});
     return () => {
       mounted = false;
     };
@@ -448,7 +451,9 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       }}
     >
       <Canvas shadows camera={{ position: [0, 1.8, 2.5], fov: 42 }}>
-        <Library />
+        {sceneEnv === 'library' && <Library />}
+        {sceneEnv === 'space' && <SpaceStation />}
+        {sceneEnv === 'train' && <Train />}
         <Laptop
           position={SELF_LAPTOP}
           rotationY={0}
@@ -624,6 +629,14 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                 <div style={{ color: 'var(--text-mute)', fontSize: 12 }}>
                   `Fn` is not offered here because operating systems usually intercept it before Electron can detect it reliably.
                 </div>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text)' }}>
+                  Environment
+                  <select value={sceneEnv} onChange={(e) => setSceneEnv(e.target.value as 'library' | 'space' | 'train')} style={menuSelect}>
+                    <option value="library">Library</option>
+                    <option value="space">Space Station</option>
+                    <option value="train">Night Train</option>
+                  </select>
+                </label>
                 <button
                   style={menuPrimaryButton}
                   onClick={() => {
