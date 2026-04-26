@@ -6,6 +6,7 @@ export type ActiveWindowInfo = { title: string; app: string; url?: string };
 const api = {
   capture: {
     getSources: (): Promise<CaptureSource[]> => ipcRenderer.invoke('capture:getSources'),
+    setProtection: (enabled: boolean): Promise<void> => ipcRenderer.invoke('capture:setProtection', enabled),
   },
   system: {
     idleTime: (): Promise<number> => ipcRenderer.invoke('system:idleTime'),
@@ -36,6 +37,11 @@ const api = {
       const listener = () => cb();
       ipcRenderer.on('window:screenModeToggleHud', listener);
       return () => ipcRenderer.off('window:screenModeToggleHud', listener);
+    },
+    onToggleMode: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('window:toggleMode', listener);
+      return () => ipcRenderer.off('window:toggleMode', listener);
     },
   },
   hotkey: {

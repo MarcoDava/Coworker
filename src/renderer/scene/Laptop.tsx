@@ -55,15 +55,16 @@ export function Laptop({ position, rotationY = 0, stream, paused, label, onDoubl
         <RoundedBox args={[1.2, 0.84, 0.06]} radius={0.07} smoothness={4} castShadow>
           <meshToonMaterial color="#f7f4ef" />
         </RoundedBox>
-        <RoundedBox args={[1.04, 0.66, 0.02]} radius={0.03} smoothness={3} position={[0, 0, 0.03]}>
-          <meshToonMaterial color="#243142" />
-        </RoundedBox>
-        <mesh position={[0, 0, 0.04]}>
-          <planeGeometry args={[1.1, 0.7]} />
+        <mesh position={[0, 0, 0.034]}>
+          <planeGeometry args={[1.04, 0.66]} />
+          <meshBasicMaterial color="#243142" />
+        </mesh>
+        <mesh position={[0, 0, 0.045]}>
+          <planeGeometry args={[1.0, 0.62]} />
           {paused ? (
             <meshBasicMaterial color="#5e6a7b" />
           ) : stream ? (
-            <meshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
+            <meshBasicMaterial map={texture} toneMapped={false} />
           ) : (
             <meshBasicMaterial color="#6f84a5" />
           )}

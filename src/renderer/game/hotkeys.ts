@@ -27,8 +27,8 @@ export function useHotkeys(
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (matchesKey(e, cfg.peek)) handlers.onPeekDown();
-      else if (matchesKey(e, cfg.callout)) handlers.onCallout();
+      if (matchesKey(e, cfg.peek)) { e.preventDefault(); handlers.onPeekDown(); }
+      else if (matchesKey(e, cfg.callout)) { e.preventDefault(); handlers.onCallout(); }
       else if (matchesKey(e, cfg.pause)) handlers.onPause();
     };
     const up = (e: KeyboardEvent) => {

@@ -23,6 +23,13 @@ export default defineConfig({
     define: {
       global: 'globalThis',
     },
+    resolve: {
+      alias: {
+        events: resolve(__dirname, 'node_modules/events'),
+        util: resolve(__dirname, 'node_modules/util'),
+        stream: resolve(__dirname, 'node_modules/readable-stream'),
+      },
+    },
     build: {
       rollupOptions: {
         input: resolve(__dirname, 'src/renderer/index.html'),

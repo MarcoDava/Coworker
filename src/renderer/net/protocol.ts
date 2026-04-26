@@ -10,6 +10,7 @@ export type PeerMessage =
   | { type: 'reasonResolve'; calloutTs: number; accepted: boolean }
   | { type: 'pauseStart'; remainingSec: number }
   | { type: 'pauseEnd' }
-  | { type: 'scoreDelta'; self: number; peer: number; note: string };
+  | { type: 'scoreDelta'; self: number; peer: number; note: string }
+  | { type: 'typing'; isTyping: boolean };
 
 export type Role = 'host' | 'guest';

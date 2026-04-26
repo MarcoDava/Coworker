@@ -1,10 +1,11 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, powerMonitor, session, globalShortcut } from 'electron';
+import { app, BrowserWindow, desktopCapturer, ipcMain, powerMonitor, session, globalShortcut, Menu } from 'electron';
 import { join } from 'path';
 import { startActiveWindowPolling, stopActiveWindowPolling } from './activeWindow';
 import { initRichPresence, updateRichPresence, destroyRichPresence } from './rpc';
 
 let mainWindow: BrowserWindow | null = null;
 let screenModeActive = false;
+let lastEscapeTime = 0;
 
 function unregisterScreenModeShortcuts() {
   globalShortcut.unregister('Escape');
@@ -14,7 +15,13 @@ function unregisterScreenModeShortcuts() {
 function registerScreenModeShortcuts() {
   unregisterScreenModeShortcuts();
   globalShortcut.register('Escape', () => {
-    mainWindow?.webContents.send('window:screenModeEscape');
+    const now = Date.now();
+    if (now - lastEscapeTime < 400) {
+      lastEscapeTime = 0;
+      mainWindow?.webContents.send('window:toggleMode');
+    } else {
+      lastEscapeTime = now;
+    }
   });
   globalShortcut.register('CommandOrControl+Shift+H', () => {
     mainWindow?.webContents.send('window:screenModeToggleHud');
@@ -44,14 +51,21 @@ function setScreenMode(active: boolean) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    backgroundColor: '#0a0a0f',
+    frame: false,
+    transparent: true,
+    hasShadow: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  mainWindow.maximize();
+  // Prevent Alt from activating the Windows system menu, which would steal Alt+Space callout
+  Menu.setApplicationMenu(null);
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.alt && input.key === ' ') event.preventDefault();
   });
 
   session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => {
@@ -66,6 +80,10 @@ function createWindow() {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
+
+ipcMain.handle('capture:setProtection', (_e, enabled: boolean) => {
+  mainWindow?.setContentProtection(enabled);
+});
 
 ipcMain.handle('capture:getSources', async () => {
   const sources = await desktopCapturer.getSources({

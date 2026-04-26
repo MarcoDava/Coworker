@@ -17,11 +17,11 @@ type Props = {
 // Both modes share these laptop-relative constants.
 const SCREEN_HEIGHT = 1.24;
 const SCREEN_Z_BIAS = -0.35;
-const HEAD_HEIGHT = 1.7;
+const HEAD_HEIGHT = 1.52;
 const HEAD_Z_BIAS = 1.08;
 
 // Overhead: camera hovers above+behind the head and angles down to the screen.
-const OVERHEAD_OFFSET = new THREE.Vector3(0, 1.1, 2.55);
+const OVERHEAD_OFFSET = new THREE.Vector3(0, 2.4, 2.6);
 
 function screenPos(anchor: [number, number, number]) {
   return new THREE.Vector3(anchor[0], SCREEN_HEIGHT, anchor[2] + SCREEN_Z_BIAS);

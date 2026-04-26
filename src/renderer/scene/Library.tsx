@@ -1,4 +1,4 @@
-import { ContactShadows, Environment, Float, RoundedBox } from '@react-three/drei';
+import { ContactShadows, Environment, Float, Mask, RoundedBox, useMask } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -53,24 +53,142 @@ function WallLamp({ position }: { position: [number, number, number] }) {
   );
 }
 
+function OutdoorScene() {
+  const stencil = useMask(1);
+  return (
+    <group>
+      {/* Sky */}
+      <mesh position={[0, 0, 0.07]}>
+        <planeGeometry args={[2.72, 1.82]} />
+        <meshBasicMaterial color="#cfe6ff" {...stencil} />
+      </mesh>
+      {/* Warm sun glow band along the horizon */}
+      <mesh position={[0.55, -0.1, 0.072]}>
+        <circleGeometry args={[0.55, 24]} />
+        <meshBasicMaterial color="#ffe6a8" transparent opacity={0.85} {...stencil} />
+      </mesh>
+      <mesh position={[0.55, -0.1, 0.073]}>
+        <circleGeometry args={[0.22, 24]} />
+        <meshBasicMaterial color="#fff5d0" {...stencil} />
+      </mesh>
+      {/* Far hill */}
+      <mesh position={[-0.4, -0.45, 0.074]}>
+        <circleGeometry args={[1.25, 32]} />
+        <meshBasicMaterial color="#9bc28a" {...stencil} />
+      </mesh>
+      {/* Near hill */}
+      <mesh position={[0.6, -0.6, 0.075]}>
+        <circleGeometry args={[1.0, 32]} />
+        <meshBasicMaterial color="#7ea96e" {...stencil} />
+      </mesh>
+      {/* Tree on the far hill */}
+      <group position={[-0.55, 0.18, 0.078]}>
+        <mesh position={[0, -0.18, 0]}>
+          <planeGeometry args={[0.05, 0.32]} />
+          <meshBasicMaterial color="#5b3a26" {...stencil} />
+        </mesh>
+        <mesh position={[0, 0.05, 0]}>
+          <circleGeometry args={[0.22, 24]} />
+          <meshBasicMaterial color="#4f7e46" {...stencil} />
+        </mesh>
+        <mesh position={[-0.13, -0.03, 0.001]}>
+          <circleGeometry args={[0.14, 24]} />
+          <meshBasicMaterial color="#5e8e54" {...stencil} />
+        </mesh>
+        <mesh position={[0.13, -0.03, 0.001]}>
+          <circleGeometry args={[0.14, 24]} />
+          <meshBasicMaterial color="#5e8e54" {...stencil} />
+        </mesh>
+      </group>
+      {/* Foreground bush, right side */}
+      <group position={[0.85, -0.4, 0.079]}>
+        <mesh>
+          <circleGeometry args={[0.18, 20]} />
+          <meshBasicMaterial color="#456e3b" {...stencil} />
+        </mesh>
+        <mesh position={[-0.13, 0.03, 0.001]}>
+          <circleGeometry args={[0.13, 20]} />
+          <meshBasicMaterial color="#4f7c43" {...stencil} />
+        </mesh>
+        <mesh position={[0.12, 0.05, 0.001]}>
+          <circleGeometry args={[0.12, 20]} />
+          <meshBasicMaterial color="#557f48" {...stencil} />
+        </mesh>
+      </group>
+      {/* Foreground grass blades along bottom */}
+      <mesh position={[0, -0.86, 0.08]}>
+        <planeGeometry args={[2.72, 0.18]} />
+        <meshBasicMaterial color="#3e6535" {...stencil} />
+      </mesh>
+      {/* Sleeping cat — 3D sphere/torus geometry with toon shading */}
+      <group position={[-0.55, -0.78, 0.083]}>
+        {/* Main body curl */}
+        <mesh>
+          <sphereGeometry args={[0.10, 14, 12]} />
+          <meshToonMaterial color="#e2b07a" {...stencil} />
+        </mesh>
+        {/* Head tucked beside body */}
+        <mesh position={[-0.08, 0.07, 0.04]}>
+          <sphereGeometry args={[0.055, 12, 10]} />
+          <meshToonMaterial color="#e8bb84" {...stencil} />
+        </mesh>
+        {/* Ears */}
+        <mesh position={[-0.1, 0.12, 0.06]} rotation={[0, 0, 0.3]}>
+          <coneGeometry args={[0.018, 0.038, 4]} />
+          <meshToonMaterial color="#c89764" {...stencil} />
+        </mesh>
+        <mesh position={[-0.055, 0.13, 0.06]} rotation={[0, 0, -0.25]}>
+          <coneGeometry args={[0.018, 0.038, 4]} />
+          <meshToonMaterial color="#c89764" {...stencil} />
+        </mesh>
+        {/* Tail arc wrapping around body */}
+        <mesh rotation={[Math.PI / 2, 0.4, 0]} position={[0.04, -0.02, 0]}>
+          <torusGeometry args={[0.09, 0.022, 6, 20, Math.PI * 1.4]} />
+          <meshToonMaterial color="#c89764" {...stencil} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 function WindowGlow() {
   return (
     <group position={[0, 3.15, -5.7]}>
+      {/* Outer frame */}
       <RoundedBox args={[3.2, 2.3, 0.12]} radius={0.12} smoothness={4}>
         <meshToonMaterial color="#ede1bd" />
       </RoundedBox>
-      <mesh position={[0, 0, 0.08]}>
+      {/* Stencil mask defines the glass opening — clips OutdoorScene to pane bounds */}
+      <Mask id={1} position={[0, 0, 0.062]}>
         <planeGeometry args={[2.72, 1.82]} />
-        <meshBasicMaterial color="#fff2ce" transparent opacity={0.9} />
+      </Mask>
+      {/* Outdoor diorama clipped to the pane opening */}
+      <OutdoorScene />
+      {/* Translucent glass tint overlay */}
+      <mesh position={[0, 0, 0.09]}>
+        <planeGeometry args={[2.72, 1.82]} />
+        <meshBasicMaterial color="#fff2ce" transparent opacity={0.18} />
       </mesh>
-      <mesh position={[0, 0, 0.1]}>
+      {/* Mullions */}
+      <mesh position={[0, 0, 0.105]}>
         <boxGeometry args={[2.78, 0.08, 0.04]} />
         <meshToonMaterial color="#e2cfaa" />
       </mesh>
-      <mesh position={[0, 0, 0.1]}>
+      <mesh position={[0, 0, 0.105]}>
         <boxGeometry args={[0.08, 1.88, 0.04]} />
         <meshToonMaterial color="#e2cfaa" />
       </mesh>
+      {/* Sunbeam pouring in from the window */}
+      <spotLight
+        position={[0, 0, 0.3]}
+        target-position={[0, -3, 5]}
+        intensity={1.4}
+        distance={14}
+        angle={0.85}
+        penumbra={0.6}
+        color="#ffe2a8"
+      />
+      <pointLight position={[0, 0, 0.5]} intensity={0.5} distance={6} color="#fff0c4" />
     </group>
   );
 }
@@ -264,21 +382,38 @@ export function Library() {
       </RoundedBox>
 
       <WindowGlow />
-      <WallLamp position={[-4.4, 3.25, -5.62]} />
-      <WallLamp position={[4.4, 3.25, -5.62]} />
+      <WallLamp position={[-4.4, 3.25, -5.55]} />
+      <WallLamp position={[4.4, 3.25, -5.55]} />
 
       {[-5.25, 5.25].map((x) => (
         <group key={x} position={[x, 0.2, -5.25]}>
-          <RoundedBox args={[3.25, 4.6, 0.8]} radius={0.18} smoothness={4} position={[0, 2.1, 0]} castShadow receiveShadow>
+          {/* Back panel of cubby */}
+          <RoundedBox args={[3.25, 4.6, 0.1]} radius={0.04} smoothness={3} position={[0, 2.1, -0.35]} castShadow receiveShadow>
             <meshToonMaterial color="#5e3d28" />
           </RoundedBox>
+          {/* Side panels */}
+          <RoundedBox args={[0.18, 4.6, 0.78]} radius={0.05} smoothness={3} position={[-1.535, 2.1, 0.01]} castShadow receiveShadow>
+            <meshToonMaterial color="#5e3d28" />
+          </RoundedBox>
+          <RoundedBox args={[0.18, 4.6, 0.78]} radius={0.05} smoothness={3} position={[1.535, 2.1, 0.01]} castShadow receiveShadow>
+            <meshToonMaterial color="#5e3d28" />
+          </RoundedBox>
+          {/* Top and bottom caps */}
+          <RoundedBox args={[3.25, 0.18, 0.78]} radius={0.05} smoothness={3} position={[0, 4.31, 0.01]} castShadow receiveShadow>
+            <meshToonMaterial color="#5e3d28" />
+          </RoundedBox>
+          <RoundedBox args={[3.25, 0.18, 0.78]} radius={0.05} smoothness={3} position={[0, -0.11, 0.01]} castShadow receiveShadow>
+            <meshToonMaterial color="#5e3d28" />
+          </RoundedBox>
+          {/* Horizontal shelves inside the cubby */}
           {[0.55, 1.35, 2.15, 2.95, 3.75].map((y) => (
-            <RoundedBox key={y} args={[2.7, 0.09, 0.5]} radius={0.03} smoothness={3} position={[0, y, 0.16]} castShadow>
+            <RoundedBox key={y} args={[2.84, 0.09, 0.7]} radius={0.03} smoothness={3} position={[0, y, 0.01]} castShadow receiveShadow>
               <meshToonMaterial color="#c49366" />
             </RoundedBox>
           ))}
-          {[0.37, 1.17, 1.97, 2.77, 3.57].map((y) => (
-            <ShelfBooks key={y} position={[0, y, 0.34]} />
+          {/* Books sit inside the cubby, in front of back panel */}
+          {[0.64, 1.44, 2.24, 3.04, 3.84].map((y) => (
+            <ShelfBooks key={y} position={[0, y, 0.05]} />
           ))}
         </group>
       ))}

@@ -26,8 +26,8 @@ type Props = {
   onQuit: () => void;
 };
 
-const SELF_LAPTOP: [number, number, number] = [-1.8, 0, -2];
-const PEER_LAPTOP: [number, number, number] = [0.9, 0, -2];
+const GUEST_LAPTOP: [number, number, number] = [-1.8, 0, -2];
+const HOST_LAPTOP: [number, number, number] = [0.9, 0, -2];
 const IDLE_THRESHOLD_SEC = 120;
 const LOOK_STORAGE_KEY = 'coworker.lookModifier';
 const QUIT_PHRASE = 'im a chicken, buk buk';
@@ -74,6 +74,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const screenModeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const store = useScoreStore();
+  const selfLaptop = cfg.role === 'host' ? HOST_LAPTOP : GUEST_LAPTOP;
+  const peerLaptop = cfg.role === 'host' ? GUEST_LAPTOP : HOST_LAPTOP;
 
   function resetFreeLook() {
     draggingRef.current = false;
@@ -132,8 +134,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       if (msg.type === 'joined' && msg.peers.length > 0) {
         peerRef.current = new PeerConnection(sig, msg.peers[0], cfg.role === 'host', localStream, handlers);
       } else if (msg.type === 'peer-joined') {
-        if (cfg.role === 'host') {
-          peerRef.current = new PeerConnection(sig, msg.id, true, localStream, handlers);
+        if (!peerRef.current) {
+          peerRef.current = new PeerConnection(sig, msg.id, cfg.role === 'host', localStream, handlers);
         }
       } else if (msg.type === 'signal') {
         peerRef.current?.acceptSignal(msg.payload);
@@ -512,23 +514,23 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         {sceneEnv === 'space' && <SpaceStation />}
         {sceneEnv === 'train' && <Train />}
         <Laptop
-          position={SELF_LAPTOP}
+          position={selfLaptop}
           rotationY={0}
           stream={localStream}
           paused={store.isPaused}
           label="you"
           onDoubleClick={() => void setScreenModeActive(true)}
         />
-        <Laptop position={PEER_LAPTOP} rotationY={0} stream={remoteStream} paused={store.pausedByPeer} label="friend" />
+        <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={store.pausedByPeer} label="friend" />
         <Avatar
-          position={[SELF_LAPTOP[0], 0, SELF_LAPTOP[2] + 0.8]}
+          position={[selfLaptop[0], 0, selfLaptop[2] + 0.8]}
           color="#5aa8ff"
           rotationY={Math.PI}
           isTyping={selfTyping}
           transparent={cameraMode === 'firstPerson'}
         />
         <Avatar
-          position={[PEER_LAPTOP[0], 0, PEER_LAPTOP[2] + 1.15]}
+          position={[peerLaptop[0], 0, peerLaptop[2] + 1.15]}
           color="#ff8e5a"
           rotationY={Math.PI}
           isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
@@ -537,8 +539,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         <CameraRig
           mode={cameraMode}
           peeking={peeking}
-          selfAnchor={SELF_LAPTOP}
-          peerAnchor={PEER_LAPTOP}
+          selfAnchor={selfLaptop}
+          peerAnchor={peerLaptop}
           freeLookRef={freeLookRef}
         />
       </Canvas>
