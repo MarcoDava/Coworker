@@ -2,6 +2,8 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LobbyConfig } from './Lobby';
 import { Library } from '../scene/Library';
+import { SpaceStation } from '../scene/SpaceStation';
+import { Train } from '../scene/Train';
 import { Laptop } from '../scene/Laptop';
 import { Avatar } from '../scene/Avatar';
 import { CameraRig, type CameraMode } from '../scene/Camera';
@@ -43,14 +45,12 @@ function readLookModifier(): LookModifier {
 export function Session({ cfg, onFinish, onQuit }: Props) {
   const sessionRoom = `${cfg.room}:session`;
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const freeLookRef = useRef({ enabled: false, yaw: 0, pitch: 0 });
   const draggingRef = useRef(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [peeking, setPeeking] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('overhead');
-  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement));
   const [lookModifier, setLookModifier] = useState<LookModifier>(() => readLookModifier());
   const [lookHeld, setLookHeld] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,21 +64,16 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [peerIdleSec, setPeerIdleSec] = useState(0);
   const [incomingReason, setIncomingReason] = useState<{ reason: string; calloutTs: number } | null>(null);
   const [pendingReasonUi, setPendingReasonUi] = useState<{ targetApp: string; deadline: number; calloutTs: number } | null>(null);
+  const [selfTyping, setSelfTyping] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const [peerLeft, setPeerLeft] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(0.25);
+  const [sceneEnv, setSceneEnv] = useState<'library' | 'space' | 'train'>('library');
 
   const peerRef = useRef<PeerConnection | null>(null);
+  const screenModeRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const store = useScoreStore();
-
-  function toggleFullscreen() {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-      return;
-    }
-
-    const node = rootRef.current;
-    if (node) {
-      void node.requestFullscreen();
-    }
-  }
 
   function resetFreeLook() {
     draggingRef.current = false;
@@ -88,6 +83,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   }
 
   async function setScreenModeActive(active: boolean) {
+    screenModeRef.current = active;
     setScreenMode(active);
     setScreenHudVisible(true);
     if (active) {
@@ -105,23 +101,15 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   useEffect(() => {
     let mounted = true;
     navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 24 }, audio: false }).then((stream) => {
-      if (mounted) setLocalStream(stream);
-    });
+      if (!mounted) return;
+      window.coworker?.capture.setProtection(true);
+      setLocalStream(stream);
+    }).catch(() => {});
     return () => {
       mounted = false;
+      window.coworker?.capture.setProtection(false);
     };
   }, []);
-
-  useEffect(() => {
-    const video = screenVideoRef.current;
-    if (!video) return;
-    if (localStream) {
-      video.srcObject = localStream;
-      void video.play().catch(() => {});
-    } else {
-      video.srcObject = null;
-    }
-  }, [localStream, screenMode]);
 
   useEffect(() => {
     if (!localStream) return;
@@ -153,6 +141,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         peerRef.current?.destroy();
         peerRef.current = null;
         setRemoteStream(null);
+        setPeerLeft(true);
       }
     });
 
@@ -214,17 +203,13 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     }
   }, [peerIdleSec, store]);
 
-  useEffect(() => {
-    const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, []);
 
   useEffect(() => {
     const api = window.coworker;
     if (!api) return;
 
     const offEscape = api.window.onScreenModeEscape(() => {
+      screenModeRef.current = false;
       setScreenMode(false);
       setScreenHudVisible(true);
       void api.window.setScreenMode(false);
@@ -232,12 +217,61 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     const offHud = api.window.onScreenModeToggleHud(() => {
       setScreenHudVisible((visible) => !visible);
     });
+    const offToggle = api.window.onToggleMode(() => {
+      void setScreenModeActive(!screenModeRef.current);
+    });
     return () => {
       offEscape();
       offHud();
+      offToggle();
       void api.window.setScreenMode(false);
     };
   }, []);
+
+  useEffect(() => {
+    const bg = screenMode && window.coworker ? 'transparent' : '';
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+    const root = document.getElementById('root');
+    if (root) root.style.background = bg;
+  }, [screenMode]);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const onKey = () => {
+      setSelfTyping(true);
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setSelfTyping(false), 700);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  useEffect(() => {
+    peerRef.current?.send({ type: 'typing', isTyping: selfTyping });
+  }, [selfTyping]);
+
+  useEffect(() => {
+    const audio = new Audio();
+    audio.src = 'https://stream.zeno.fm/f3wvbbqmdg8uv';
+    audio.loop = true;
+    audio.volume = musicVolume;
+    audioRef.current = audio;
+    audio.play().catch(() => {});
+    return () => {
+      audio.pause();
+      audio.src = '';
+      audioRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = musicVolume;
+  }, [musicVolume]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -253,15 +287,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         return;
       }
 
+      if (menuOpen) return;
+
       if (e.repeat) return;
 
       if (e.key === 'v' || e.key === 'V') {
         setCameraMode((mode) => (mode === 'overhead' ? 'firstPerson' : 'overhead'));
-        return;
-      }
-
-      if (e.key === 'f' || e.key === 'F') {
-        toggleFullscreen();
         return;
       }
 
@@ -288,7 +319,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [lookModifier, screenMode]);
+  }, [lookModifier, menuOpen, screenMode]);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -355,6 +386,9 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     if (message.type === 'scoreDelta') {
       store.applyDelta(message.peer, message.self, message.note);
     }
+    if (message.type === 'typing') {
+      setPeerTyping(message.isTyping);
+    }
   }
 
   useHotkeys(
@@ -365,7 +399,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     {
       onPeekDown: () => {
         if (menuOpen || screenMode) return;
-        if (cameraMode === 'firstPerson') return;
         setPeeking(true);
         peerRef.current?.send({ type: 'peek', isPeeking: true });
       },
@@ -417,19 +450,39 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     if (screenMode) return 'screen mode active · Esc exits · Ctrl+Shift+H toggles overlay';
     if (store.isPaused) return 'paused - press P again to resume';
     if (cameraMode === 'firstPerson') {
-      return `hold ${lookModifier} and drag to look around · V to switch view · M for screen mode`;
+      return `hold ${lookModifier} and drag to look around · V to switch view · M for work mode`;
     }
     if (peeking) return 'peeking - press SPACE to call out';
-    return `hold ${lookModifier} to peek · V to switch view · M for screen mode`;
+    return `hold ${lookModifier} to peek · V to switch view · M for work mode`;
   }, [cameraMode, lookModifier, peeking, screenMode, store.isPaused]);
 
   const quitReady = quitText.trim().toLowerCase() === QUIT_PHRASE;
+
+  if (screenMode) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'transparent', pointerEvents: 'none' }}>
+        {screenHudVisible && (
+          <div style={workModeHud}>
+            <Timer secondsLeft={secondsLeft} />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.5 }}>
+              double-tap Esc · enter scene
+            </div>
+            {peerActiveWindow && (
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'JetBrains Mono, monospace' }}>
+                friend · {peerActiveWindow.app}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
       ref={rootRef}
       onMouseDown={(e) => {
-        if (menuOpen || screenMode) return;
+        if (menuOpen) return;
         if (cameraMode !== 'firstPerson' || !lookHeld) return;
         if (e.button !== 0) return;
         draggingRef.current = true;
@@ -440,15 +493,24 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         height: '100vh',
         position: 'relative',
         cursor:
-          !screenMode && cameraMode === 'firstPerson' && lookHeld
+          cameraMode === 'firstPerson' && lookHeld
             ? draggingRef.current
               ? 'grabbing'
               : 'grab'
             : 'default',
       }}
     >
-      <Canvas shadows camera={{ position: [0, 1.8, 2.5], fov: 42 }}>
-        <Library />
+      <Canvas
+        shadows
+        gl={{ stencil: true }}
+        camera={{ position: [0, 1.8, 2.5], fov: 42 }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault(), false);
+        }}
+      >
+        {sceneEnv === 'library' && <Library />}
+        {sceneEnv === 'space' && <SpaceStation />}
+        {sceneEnv === 'train' && <Train />}
         <Laptop
           position={SELF_LAPTOP}
           rotationY={0}
@@ -462,6 +524,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           position={[SELF_LAPTOP[0], 0, SELF_LAPTOP[2] + 0.8]}
           color="#5aa8ff"
           rotationY={Math.PI}
+          isTyping={selfTyping}
           transparent={cameraMode === 'firstPerson'}
         />
         <Avatar
@@ -469,6 +532,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           color="#ff8e5a"
           rotationY={Math.PI}
           isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
+          isTyping={peerTyping}
         />
         <CameraRig
           mode={cameraMode}
@@ -478,13 +542,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           freeLookRef={freeLookRef}
         />
       </Canvas>
-
-      {screenMode && (
-        <div style={screenModeLayer}>
-          <video ref={screenVideoRef} autoPlay muted playsInline style={screenVideoStyle} />
-          <div style={screenModeEdgeGlow} />
-        </div>
-      )}
 
       {(!screenMode || screenHudVisible) && (
         <div
@@ -529,9 +586,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           <button onClick={() => void setScreenModeActive(!screenMode)} style={menuButton}>
             {screenMode ? 'Exit screen mode' : 'Screen mode'}
           </button>
-          <button onClick={toggleFullscreen} style={menuButton}>
-            {isFullscreen ? 'Exit app fullscreen' : 'App fullscreen'}
-          </button>
           <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{hudHint}</div>
           <div style={{ color: 'var(--text-mute)', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}>
             you · {selfActiveWindow?.app ?? '—'}
@@ -564,7 +618,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           <div style={menuCard}>
             {!optionsOpen ? (
               <>
-                <h2 style={{ margin: 0, fontSize: 26 }}>Session Menu</h2>
+                <h2 style={{ margin: 0, fontSize: 26, color: 'var(--text)' }}>Session Menu</h2>
                 <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>
                   The session is still live. Use this when you need a quick escape hatch without losing your place.
                 </div>
@@ -575,7 +629,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                   Options
                 </button>
                 <div style={quitBox}>
-                  <div style={{ fontWeight: 600 }}>Quit lock-in</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>Quit lock-in</div>
                   <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>
                     Type <code>{QUIT_PHRASE}</code> before quitting.
                   </div>
@@ -600,7 +654,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
               </>
             ) : (
               <>
-                <h2 style={{ margin: 0, fontSize: 26 }}>Options</h2>
+                <h2 style={{ margin: 0, fontSize: 26, color: 'var(--text)' }}>Options</h2>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
                   Look / peek modifier
                   <select
@@ -624,6 +678,35 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                 <div style={{ color: 'var(--text-mute)', fontSize: 12 }}>
                   `Fn` is not offered here because operating systems usually intercept it before Electron can detect it reliably.
                 </div>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text)' }}>
+                  Music volume
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={musicVolume}
+                      onChange={(e) => setMusicVolume(Number(e.target.value))}
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 32 }}>
+                      {Math.round(musicVolume * 100)}%
+                    </span>
+                  </div>
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text)' }}>
+                  Environment
+                  <select
+                    value={sceneEnv}
+                    onChange={(e) => setSceneEnv(e.target.value as 'library' | 'space' | 'train')}
+                    style={menuSelect}
+                  >
+                    <option value="library">Library</option>
+                    <option value="space">Space Station</option>
+                    <option value="train">Night Train</option>
+                  </select>
+                </label>
                 <button
                   style={menuPrimaryButton}
                   onClick={() => {
@@ -658,6 +741,23 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             setPendingReasonUi(null);
           }}
         />
+      )}
+
+      {peerLeft && (
+        <div style={menuOverlay}>
+          <div style={menuCard}>
+            <h2 style={{ margin: 0, fontSize: 26, color: 'var(--text)' }}>Your friend left</h2>
+            <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>
+              Your co-working partner disconnected. You can keep going solo or end the session.
+            </div>
+            <button style={menuPrimaryButton} onClick={() => setPeerLeft(false)}>
+              Keep going
+            </button>
+            <button style={menuButton} onClick={onQuit}>
+              End session
+            </button>
+          </div>
+        </div>
       )}
 
       {incomingReason && (
@@ -715,8 +815,8 @@ const menuCard: React.CSSProperties = {
   padding: 24,
   borderRadius: 24,
   border: '1px solid var(--border)',
-  background: 'rgba(255,255,255,0.9)',
-  boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
+  background: 'rgba(18, 22, 35, 0.97)',
+  boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
 };
 
 const menuInput: React.CSSProperties = {
@@ -740,8 +840,8 @@ const quitBox: React.CSSProperties = {
   gap: 10,
   padding: 14,
   borderRadius: 18,
-  border: '1px solid rgba(0,0,0,0.08)',
-  background: 'rgba(245, 239, 232, 0.8)',
+  border: '1px solid var(--border)',
+  background: 'rgba(255,255,255,0.04)',
 };
 
 const pillStyle: React.CSSProperties = {
@@ -761,31 +861,19 @@ const pillStyle: React.CSSProperties = {
   zIndex: 15,
 };
 
-const screenModeLayer: React.CSSProperties = {
+const workModeHud: React.CSSProperties = {
   position: 'absolute',
-  inset: 0,
-  zIndex: 8,
-  pointerEvents: 'none',
+  top: 16,
+  right: 16,
   display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '18px',
-  boxSizing: 'border-box',
-};
-
-const screenVideoStyle: React.CSSProperties = {
-  width: '100%',
-  height: '100%',
-  objectFit: 'contain',
-  borderRadius: 24,
-  boxShadow: '0 30px 90px rgba(0,0,0,0.28)',
-};
-
-const screenModeEdgeGlow: React.CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  borderRadius: 28,
-  boxShadow: 'inset 0 0 80px rgba(12, 12, 20, 0.4), inset 0 0 14px rgba(255,255,255,0.12)',
-  backdropFilter: 'blur(3px)',
-  WebkitBackdropFilter: 'blur(3px)',
+  flexDirection: 'column',
+  gap: 6,
+  padding: '10px 14px',
+  borderRadius: 12,
+  background: 'rgba(10,10,18,0.55)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  pointerEvents: 'none',
+  zIndex: 20,
 };
