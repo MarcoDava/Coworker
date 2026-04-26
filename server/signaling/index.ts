@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 
-const PORT = Number(process.env.SIGNALING_PORT ?? 8787);
+const PORT = Number(process.env.PORT ?? process.env.SIGNALING_PORT ?? 8787);
 
 type PeerRole = 'host' | 'guest';
 type LobbyProfile = {
