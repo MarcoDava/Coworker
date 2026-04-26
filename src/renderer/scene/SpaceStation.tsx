@@ -3,306 +3,340 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
-// 3D planets rendered with depthTest:false + stencil so they show only inside the window mask
-function SpaceView({ maskId }: { maskId: number }) {
-  const stencil = useMask(maskId);
+function Porthole({ position }: { position: [number, number, number] }) {
+  const stencil = useMask(1, false);
+
   const stars = useMemo(
     () =>
-      Array.from({ length: 90 }, (_, i) => ({
-        x: -2.2 + ((i * 17) % 44) * 0.1,
-        y: -1.3 + ((i * 11) % 26) * 0.1,
-        r: 0.007 + (i % 5) * 0.003,
-        bright: i % 7 === 0,
+      Array.from({ length: 28 }, (_, i) => ({
+        x: -0.65 + ((i * 37 + 11) % 100) / 76,
+        y: -0.55 + ((i * 53 + 7) % 100) / 90,
+        r: 0.007 + ((i * 11) % 4) * 0.003,
       })),
     []
   );
+
   return (
-    <group>
-      {/* Deep space background — covers the whole window, depth tested */}
+    <group position={position}>
+      <Mask id={1} colorWrite={false} depthWrite={false}>
+        <circleGeometry args={[0.72, 32]} />
+      </Mask>
+
       <mesh renderOrder={1}>
-        <planeGeometry args={[4.5, 3.2]} />
-        <meshBasicMaterial color="#020509" transparent depthWrite={false} {...stencil} />
+        <planeGeometry args={[1.5, 1.5]} />
+        <meshBasicMaterial color="#010610" {...stencil} />
       </mesh>
-      {/* Nebula cloud */}
-      <mesh position={[-0.4, 0.3, 0.01]} renderOrder={2}>
-        <circleGeometry args={[1.1, 32]} />
-        <meshBasicMaterial color="#14083a" transparent opacity={0.82} depthWrite={false} {...stencil} />
-      </mesh>
-      <mesh position={[0.5, -0.4, 0.01]} renderOrder={2}>
-        <circleGeometry args={[0.7, 28]} />
-        <meshBasicMaterial color="#08122a" transparent opacity={0.75} depthWrite={false} {...stencil} />
-      </mesh>
-      {/* Stars */}
+
       {stars.map((s, i) => (
-        <group key={i} position={[s.x, s.y, 0.02]}>
-          <mesh renderOrder={3}>
-            <circleGeometry args={[s.r, 6]} />
-            <meshBasicMaterial color={s.bright ? '#ffffff' : '#eaf0f8'} transparent depthWrite={false} {...stencil} />
-          </mesh>
-          <pointLight intensity={s.bright ? 0.25 : 0.08} distance={0.6} color={s.bright ? '#ffffff' : '#eaf0f8'} />
-        </group>
+        <mesh key={i} position={[s.x, s.y, 0.01]} renderOrder={2}>
+          <circleGeometry args={[s.r, 6]} />
+          <meshBasicMaterial color="#d8e8ff" {...stencil} />
+        </mesh>
       ))}
 
-      {/* ── Planet 1: large gas giant, lit by directional light via toonMaterial ── */}
-      {/* Atmosphere glow (slightly bigger, transparent) */}
-      <mesh position={[0.95, 0.28, 0.06]} renderOrder={4}>
-        <sphereGeometry args={[0.72, 28, 28]} />
-        <meshBasicMaterial color="#1830a0" transparent opacity={0.22} depthWrite={false} {...stencil} />
+      <mesh position={[0.22, -0.2, 0.02]} renderOrder={2}>
+        <circleGeometry args={[0.16, 20]} />
+        <meshBasicMaterial color="#2255aa" {...stencil} />
       </mesh>
-      {/* Planet body — toon shading from scene directional light gives real 3D look */}
-      <mesh position={[0.95, 0.28, 0.07]} renderOrder={5}>
-        <sphereGeometry args={[0.62, 32, 32]} />
-        <meshToonMaterial color="#3a6090" transparent depthWrite={false} {...stencil} />
-      </mesh>
-      {/* Cloud band */}
-      <mesh position={[0.95, 0.18, 0.08]} renderOrder={6}>
-        <sphereGeometry args={[0.56, 28, 14]} />
-        <meshBasicMaterial color="#5080b0" transparent opacity={0.28} depthWrite={false} {...stencil} />
+      <mesh position={[0.22, -0.2, 0.025]} renderOrder={3}>
+        <ringGeometry args={[0.19, 0.25, 20]} />
+        <meshBasicMaterial color="#4477cc" transparent opacity={0.7} {...stencil} />
       </mesh>
 
-      {/* ── Planet 2: smaller desert world ── */}
-      <mesh position={[-1.2, -0.22, 0.04]} renderOrder={4}>
-        <sphereGeometry args={[0.32, 28, 28]} />
-        <meshBasicMaterial color="#301808" transparent opacity={0.18} depthWrite={false} {...stencil} />
+      <mesh>
+        <torusGeometry args={[0.72, 0.09, 8, 32]} />
+        <meshToonMaterial color="#3d4d6d" />
       </mesh>
-      <mesh position={[-1.2, -0.22, 0.05]} renderOrder={5}>
-        <sphereGeometry args={[0.28, 28, 28]} />
-        <meshToonMaterial color="#8a5020" transparent depthWrite={false} {...stencil} />
-      </mesh>
-
-      {/* ── Moon orbiting planet 1 ── */}
-      <mesh position={[1.62, -0.05, 0.06]} renderOrder={5}>
-        <sphereGeometry args={[0.22, 18, 18]} />
-        <meshToonMaterial color="#d0d8e0" transparent depthWrite={false} {...stencil} />
+      <mesh>
+        <torusGeometry args={[0.86, 0.06, 6, 32]} />
+        <meshToonMaterial color="#2a3550" />
       </mesh>
 
-      {/* ── Distant tiny planet ── */}
-      <mesh position={[-0.3, 0.78, 0.03]} renderOrder={5}>
-        <sphereGeometry args={[0.07, 14, 14]} />
-        <meshToonMaterial color="#607850" transparent depthWrite={false} {...stencil} />
-      </mesh>
-
-      {/* ── Distant station silhouette ── */}
-      <mesh position={[-0.8, 0.5, 0.03]} rotation={[0, 0, 0.3]} renderOrder={4}>
-        <boxGeometry args={[0.55, 0.03, 0.02]} />
-        <meshBasicMaterial color="#304050" transparent depthWrite={false} {...stencil} />
-      </mesh>
-      <mesh position={[-0.8, 0.5, 0.03]} renderOrder={4}>
-        <boxGeometry args={[0.03, 0.18, 0.02]} />
-        <meshBasicMaterial color="#304050" transparent depthWrite={false} {...stencil} />
-      </mesh>
+      {Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return (
+          <mesh key={i} position={[Math.cos(a) * 0.88, Math.sin(a) * 0.88, 0.07]}>
+            <sphereGeometry args={[0.032, 8, 8]} />
+            <meshToonMaterial color="#6a7a9a" />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
 
-function ObservationWindow() {
+function EquipmentPanel({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
+  const lights = useMemo(
+    () => [
+      { x: -0.28, y: 0.18, color: '#00ff88' },
+      { x: -0.12, y: 0.18, color: '#00ff88' },
+      { x: 0.04, y: 0.18, color: '#ff4466' },
+      { x: 0.2, y: 0.18, color: '#00ccff' },
+      { x: -0.28, y: 0.04, color: '#ffcc00' },
+      { x: -0.12, y: 0.04, color: '#00ccff' },
+    ],
+    []
+  );
+
   return (
-    <group position={[0, 2, -7]}>
-      {/* Thick frame — four border bars */}
-      <mesh position={[0, 2.44, 0]}>
-        <boxGeometry args={[7.4, 0.22, 0.16]} />
-        <meshToonMaterial color="#384858" />
+    <group position={position} rotation={rotation}>
+      <RoundedBox args={[0.72, 0.52, 0.08]} radius={0.05} smoothness={3}>
+        <meshToonMaterial color="#1c2a3e" />
+      </RoundedBox>
+      <mesh position={[0, -0.08, 0.042]}>
+        <planeGeometry args={[0.56, 0.22]} />
+        <meshBasicMaterial color="#080e1a" />
       </mesh>
-      <mesh position={[0, -2.44, 0]}>
-        <boxGeometry args={[7.4, 0.22, 0.16]} />
-        <meshToonMaterial color="#384858" />
-      </mesh>
-      <mesh position={[-3.7, 0, 0]}>
-        <boxGeometry args={[0.22, 4.88, 0.16]} />
-        <meshToonMaterial color="#384858" />
-      </mesh>
-      <mesh position={[3.7, 0, 0]}>
-        <boxGeometry args={[0.22, 4.88, 0.16]} />
-        <meshToonMaterial color="#384858" />
-      </mesh>
-      {/* Centre mullion */}
-      <mesh position={[0, 0, 0.09]}>
-        <boxGeometry args={[7.12, 0.07, 0.05]} />
-        <meshToonMaterial color="#2c3a48" />
-      </mesh>
-      {/* Stencil mask for the glass opening */}
-      <Mask id={1} position={[0, 0, 0.06]}>
-        <planeGeometry args={[7.0, 4.56]} />
-      </Mask>
-      <group scale={2} position={[0, 0, -0.1]}>
-        <SpaceView maskId={1} />
-      </group>
-      {/* Faint glass tint */}
-      <mesh position={[0, 0, 0.1]}>
-        <planeGeometry args={[7.0, 4.56]} />
-        <meshBasicMaterial color="#102850" transparent opacity={0.1} />
-      </mesh>
-      <pointLight position={[0, 0, 0.6]} intensity={0.18} distance={8} color="#4060c0" />
+      {lights.map((l, i) => (
+        <mesh key={i} position={[l.x, l.y, 0.043]}>
+          <circleGeometry args={[0.03, 8]} />
+          <meshBasicMaterial color={l.color} />
+        </mesh>
+      ))}
     </group>
   );
 }
 
-function MaintenanceDrone() {
-  const groupRef = useRef<THREE.Group>(null);
-  const clawRef = useRef<THREE.Mesh>(null);
+function StorageLockers({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
+  return (
+    <group position={position} rotation={rotation}>
+      {[-0.44, 0, 0.44].map((x, i) => (
+        <group key={i} position={[x, 0, 0]}>
+          <RoundedBox args={[0.38, 1.1, 0.14]} radius={0.04} smoothness={3}>
+            <meshToonMaterial color="#1a2438" />
+          </RoundedBox>
+          <RoundedBox args={[0.32, 0.5, 0.04]} radius={0.03} smoothness={3} position={[0, 0.05, 0.08]}>
+            <meshToonMaterial color="#151e30" />
+          </RoundedBox>
+          <mesh position={[0, 0.05, 0.12]}>
+            <sphereGeometry args={[0.025, 8, 8]} />
+            <meshToonMaterial color="#3a5070" />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function CeilingFixture({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <RoundedBox args={[1.1, 0.08, 0.36]} radius={0.03} smoothness={3}>
+        <meshToonMaterial color="#1a2438" />
+      </RoundedBox>
+      <mesh position={[0, -0.06, 0]}>
+        <planeGeometry args={[0.9, 0.26]} />
+        <meshBasicMaterial color="#a8e8ff" transparent opacity={0.55} />
+      </mesh>
+      <pointLight position={[0, -0.2, 0]} intensity={0.55} distance={4.5} color="#90d8ff" />
+    </group>
+  );
+}
+
+function MaintenanceBot() {
+  const botRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
-    const g = groupRef.current;
-    if (!g) return;
+    const bot = botRef.current;
+    if (!bot) return;
     const t = clock.getElapsedTime();
-    const sw = Math.sin(t * 0.42);
-    g.position.x = sw * 2.6;
-    g.position.y = 2.8 + Math.sin(t * 1.7) * 0.09;
-    g.position.z = -3.0 + Math.cos(t * 0.55) * 0.15;
-    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, sw > 0 ? -0.4 : 0.4, 0.07);
-    if (clawRef.current) clawRef.current.rotation.z = Math.sin(t * 2.8) * 0.25;
+    const glide = Math.sin(t * 0.38);
+    const side = glide > 0 ? 1 : -1;
+    const toolActive = Math.sin(t * 1.4) > 0.78;
+
+    bot.position.x = glide * 3.0;
+    bot.position.y = 4.3 + Math.sin(t * 1.9) * 0.14;
+    bot.position.z = -3.6 + Math.cos(t * 0.55) * 0.45;
+    bot.rotation.y = THREE.MathUtils.lerp(bot.rotation.y, side > 0 ? -0.4 : 0.4, 0.07);
+    bot.rotation.z = Math.sin(t * 1.9) * 0.06;
+
+    const tool = bot.getObjectByName('heldTool');
+    if (tool) {
+      tool.visible = toolActive;
+      tool.position.x = toolActive ? 0.2 * side : 0;
+    }
   });
 
   return (
-    <group ref={groupRef} position={[0, 2.8, -3.0]}>
-      <Float speed={1.4} floatIntensity={0.14} rotationIntensity={0.1}>
-        <RoundedBox args={[0.36, 0.2, 0.28]} radius={0.07} smoothness={4} castShadow>
-          <meshToonMaterial color="#5a6a7a" />
+    <group ref={botRef} position={[0, 4.3, -3.6]}>
+      <Float speed={1.3} floatIntensity={0.18} rotationIntensity={0.12}>
+        <RoundedBox args={[0.36, 0.22, 0.3]} radius={0.09} smoothness={4} castShadow>
+          <meshToonMaterial color="#8ab0c8" />
         </RoundedBox>
-        <mesh position={[0, 0.02, 0.15]}>
-          <planeGeometry args={[0.2, 0.09]} />
-          <meshBasicMaterial color="#0a1828" />
+        <mesh position={[0, 0.02, 0.16]}>
+          <sphereGeometry args={[0.052, 12, 12]} />
+          <meshBasicMaterial color="#00f0ff" />
         </mesh>
-        <mesh position={[0, 0.02, 0.155]}>
-          <planeGeometry args={[0.16, 0.055]} />
-          <meshBasicMaterial color="#38d8f0" transparent opacity={0.65} />
+        <mesh position={[-0.25, -0.02, 0]} rotation={[0, 0, 0.65]}>
+          <capsuleGeometry args={[0.025, 0.17, 6, 8]} />
+          <meshToonMaterial color="#6a8aa8" />
         </mesh>
-        <mesh position={[-0.22, 0, 0]} rotation={[0, 0, -0.6]} castShadow>
-          <capsuleGeometry args={[0.025, 0.18, 6, 8]} />
-          <meshToonMaterial color="#48596a" />
+        <mesh position={[0.25, -0.02, 0]} rotation={[0, 0, -0.65]}>
+          <capsuleGeometry args={[0.025, 0.17, 6, 8]} />
+          <meshToonMaterial color="#6a8aa8" />
         </mesh>
-        <mesh ref={clawRef} position={[-0.35, -0.1, 0]} castShadow>
-          <capsuleGeometry args={[0.018, 0.1, 4, 6]} />
-          <meshToonMaterial color="#38d8f0" />
-        </mesh>
-        <mesh position={[0.22, 0, 0]} rotation={[0, 0, 0.6]} castShadow>
-          <capsuleGeometry args={[0.025, 0.18, 6, 8]} />
-          <meshToonMaterial color="#48596a" />
-        </mesh>
-        {([-0.12, 0.12] as const).map((x) => (
-          <mesh key={x} position={[x, -0.14, 0]} castShadow>
-            <cylinderGeometry args={[0.035, 0.045, 0.09, 8]} />
-            <meshToonMaterial color="#4a5a6a" />
+        {[[-0.11, -0.11, 0.09], [0.11, -0.11, 0.09], [-0.11, -0.11, -0.09], [0.11, -0.11, -0.09]].map(([x, y, z], i) => (
+          <mesh key={i} position={[x, y, z]} rotation={[Math.PI, 0, 0]}>
+            <coneGeometry args={[0.038, 0.1, 8]} />
+            <meshToonMaterial color="#4a6a88" />
           </mesh>
         ))}
+        <mesh name="heldTool" position={[0, -0.04, 0.18]} visible={false}>
+          <boxGeometry args={[0.08, 0.04, 0.15]} />
+          <meshToonMaterial color="#e8d040" />
+        </mesh>
       </Float>
-      <pointLight intensity={0.45} distance={2.5} color="#38d8f0" />
+      <pointLight intensity={0.45} distance={3} color="#00d8ff" />
     </group>
+  );
+}
+
+function SpaceDebris() {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 22 }, (_, i) => ({
+        x: -4.2 + ((i * 41 + 3) % 100) / 11.8,
+        y: 0.9 + ((i * 29 + 5) % 100) / 25,
+        z: -4.8 + ((i * 17 + 9) % 100) / 24,
+        size: 0.011 + ((i * 7) % 5) * 0.004,
+      })),
+    []
+  );
+
+  return (
+    <>
+      {particles.map((p, i) => (
+        <Float key={i} speed={0.35 + (i % 5) * 0.1} floatIntensity={0.2} rotationIntensity={0.07}>
+          <mesh position={[p.x, p.y, p.z]}>
+            <sphereGeometry args={[p.size, 6, 6]} />
+            <meshBasicMaterial color="#c0d0e0" transparent opacity={0.32} />
+          </mesh>
+        </Float>
+      ))}
+    </>
   );
 }
 
 export function SpaceStation() {
   return (
     <>
-      <color attach="background" args={['#090c14']} />
-      <fog attach="fog" args={['#090c14', 7, 14]} />
+      <color attach="background" args={['#060c18']} />
+      <fog attach="fog" args={['#060c18', 7, 17]} />
       <Environment preset="night" />
-      <ambientLight intensity={0.25} color="#5070b0" />
-      {/* Main light — direction matters because planets use meshToonMaterial */}
-      <directionalLight position={[4, 6, 3]} intensity={0.8} color="#8ab0ff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-      <directionalLight position={[-3, 2, -1]} intensity={0.15} color="#38d8f0" />
+      <ambientLight intensity={0.38} color="#88aacc" />
+      <directionalLight
+        position={[4, 6, 5]}
+        intensity={0.75}
+        color="#a0c8e8"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+      />
+      <directionalLight position={[-5, 3, -2]} intensity={0.18} color="#4466aa" />
 
-      <ContactShadows position={[0, 0.02, -2.1]} opacity={0.55} scale={9} blur={2.2} far={3.5} color="#1a2840" />
+      <ContactShadows position={[0, 0.02, -2.1]} opacity={0.5} scale={11} blur={1.8} far={4.5} />
 
-      {/* Floor — metal grating */}
+      {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[16, 10]} />
-        <meshToonMaterial color="#181e2a" />
+        <planeGeometry args={[24, 24]} />
+        <meshToonMaterial color="#141c2c" />
       </mesh>
-      {Array.from({ length: 9 }, (_, i) => (
-        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, -0.3 - i * 0.5]}>
-          <planeGeometry args={[16, 0.025]} />
-          <meshBasicMaterial color="#28384c" transparent opacity={0.5} />
+
+      {/* Floor LED strips */}
+      {Array.from({ length: 11 }, (_, i) => (
+        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, -5.5 + i * 1.05]}>
+          <planeGeometry args={[24, 0.04]} />
+          <meshBasicMaterial color="#00d8ff" transparent opacity={0.38} />
         </mesh>
       ))}
 
-      {/* LED floor strips */}
-      <group position={[0, 0.012, -0.7]}>
-        <mesh><boxGeometry args={[5.0, 0.02, 0.04]} /><meshBasicMaterial color="#38d8f0" /></mesh>
-        <pointLight intensity={0.12} distance={2.5} color="#38d8f0" />
-      </group>
-      <group position={[0, 0.012, -3.6]}>
-        <mesh><boxGeometry args={[5.0, 0.02, 0.04]} /><meshBasicMaterial color="#38d8f0" /></mesh>
-        <pointLight intensity={0.12} distance={2.5} color="#38d8f0" />
-      </group>
+      {/* Landing pad ring decal */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, -2.7]}>
+        <ringGeometry args={[1.85, 2.05, 32]} />
+        <meshBasicMaterial color="#00d8ff" transparent opacity={0.55} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, -2.7]}>
+        <ringGeometry args={[0.6, 0.72, 32]} />
+        <meshBasicMaterial color="#00d8ff" transparent opacity={0.3} />
+      </mesh>
 
-      {/* Back wall (close) */}
-      <RoundedBox args={[14, 5.8, -4.5]} radius={0.2} smoothness={4} position={[0, 2.9, -7.15]} receiveShadow>
-        <meshToonMaterial color="#161c28" />
+      {/* Back wall */}
+      <RoundedBox args={[15.5, 6.2, 0.5]} radius={0.28} smoothness={4} position={[0, 3.1, -6]} receiveShadow>
+        <meshToonMaterial color="#111c2e" />
       </RoundedBox>
-      {/* Side panel strips flanking the window */}
-      {[-5.0, -3.8, 3.8, 5.0].map((x, i) => (
-        <RoundedBox key={i} args={[1.0, 5.6, 0.08]} radius={0.04} smoothness={3} position={[x, 2.8, -3.9]}>
-          <meshToonMaterial color="#1e2838" />
-        </RoundedBox>
-      ))}
-      {/* Wainscoting */}
-      <RoundedBox args={[13.5, 0.9, 0.18]} radius={0.1} smoothness={3} position={[0, 0.55, -3.9]}>
-        <meshToonMaterial color="#1a2232" />
+      {/* Back wall accent strip */}
+      <RoundedBox args={[15.1, 0.1, 0.15]} radius={0.04} smoothness={3} position={[0, 0.6, -5.72]}>
+        <meshToonMaterial color="#00c8f0" />
       </RoundedBox>
+      <mesh position={[0, 0.6, -5.72]}>
+        <planeGeometry args={[15.0, 0.08]} />
+        <meshBasicMaterial color="#00d8ff" transparent opacity={0.5} />
+      </mesh>
+
+      {/* Porthole windows */}
+      <Porthole position={[-2.6, 3.15, -5.72]} />
+      <Porthole position={[2.6, 3.15, -5.72]} />
 
       {/* Side walls */}
-      {[-6.5, 6.5].map((x) => (
-        <RoundedBox key={x} args={[0.4, 5.8, 9.5]} radius={0.18} smoothness={4} position={[x, 2.9, -0.8]} receiveShadow>
-          <meshToonMaterial color="#161c28" />
+      {([-7.2, 7.2] as number[]).map((x) => (
+        <RoundedBox
+          key={x}
+          args={[0.42, 6, 11.6]}
+          radius={0.2}
+          smoothness={4}
+          position={[x, 3, -0.35]}
+          receiveShadow
+        >
+          <meshToonMaterial color="#121c2c" />
         </RoundedBox>
       ))}
 
-      {/* Equipment racks */}
-      {[-6.1, 6.1].map((x) => (
-        <group key={x} position={[x > 0 ? x - 0.12 : x + 0.12, 2.2, -2.5]}>
-          <RoundedBox args={[0.2, 2.5, 1.2]} radius={0.05} smoothness={3} castShadow>
-            <meshToonMaterial color="#202c3c" />
-          </RoundedBox>
-          {([0.7, 0.3, -0.1, -0.5] as const).map((y, j) => (
-            <mesh key={j} position={[x > 0 ? -0.09 : 0.09, y, 0]}>
-              <boxGeometry args={[0.012, 0.09, 0.9]} />
-              <meshBasicMaterial color={j % 2 === 0 ? '#38d8f0' : '#ff5050'} />
-            </mesh>
-          ))}
-        </group>
-      ))}
+      {/* Equipment panels on left wall */}
+      <EquipmentPanel position={[-6.8, 2.6, -1.2]} rotation={[0, Math.PI / 2, 0]} />
+      <EquipmentPanel position={[-6.8, 2.6, -3.5]} rotation={[0, Math.PI / 2, 0]} />
+      <StorageLockers position={[-6.8, 0.85, -5.0]} rotation={[0, Math.PI / 2, 0]} />
+
+      {/* Equipment panels on right wall */}
+      <EquipmentPanel position={[6.8, 2.6, -1.8]} rotation={[0, -Math.PI / 2, 0]} />
+      <StorageLockers position={[6.8, 0.85, -3.8]} rotation={[0, -Math.PI / 2, 0]} />
 
       {/* Ceiling */}
-      <RoundedBox args={[14, 0.4, 9.8]} radius={0.18} smoothness={4} position={[0, 5.6, -0.8]}>
-        <meshToonMaterial color="#121620" />
+      <RoundedBox args={[15.2, 0.5, 11.8]} radius={0.22} smoothness={4} position={[0, 6.1, -0.2]}>
+        <meshToonMaterial color="#101828" />
       </RoundedBox>
-      {[-2.5, 0, 2.5].map((x) => (
-        <mesh key={x} position={[x, 5.43, -1.5]}>
-          <boxGeometry args={[0.12, 0.1, 8]} />
-          <meshToonMaterial color="#202c3c" />
-        </mesh>
-      ))}
 
-      {/* Large observation window */}
-      <ObservationWindow />
-
-      {/* Desk — surface at y=0.73 so laptop deck bottom (y=0.80) sits on top */}
-      <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, -2.1]} castShadow receiveShadow>
-        <meshToonMaterial color="#202c3c" />
-      </RoundedBox>
-      {[-2.75, 2.75].map((x) => (
-        <RoundedBox key={x} args={[0.22, 0.6, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>
-          <meshToonMaterial color="#1a2230" />
+      {/* Ceiling duct strips */}
+      {([-2.8, 0, 2.8] as number[]).map((x) => (
+        <RoundedBox key={x} args={[0.22, 0.14, 10.5]} radius={0.06} smoothness={3} position={[x, 5.82, -0.4]}>
+          <meshToonMaterial color="#1a2a3a" />
         </RoundedBox>
       ))}
 
-      {/* Work zone mat */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -2.7]} receiveShadow>
-        <planeGeometry args={[7.4, 4.4]} />
-        <meshBasicMaterial color="#1e2c40" transparent opacity={0.6} />
-      </mesh>
+      {/* Ceiling light fixtures */}
+      <CeilingFixture position={[-2.8, 5.78, -1.8]} />
+      <CeilingFixture position={[0, 5.78, -2.2]} />
+      <CeilingFixture position={[2.8, 5.78, -1.8]} />
+      <CeilingFixture position={[-2.8, 5.78, -4.2]} />
+      <CeilingFixture position={[2.8, 5.78, -4.2]} />
 
-      {/* Storage crate */}
-      <RoundedBox args={[1.5, 0.75, 0.65]} radius={0.08} smoothness={3} position={[3.0, 0.375, -3.6]} castShadow>
-        <meshToonMaterial color="#1e2c3a" />
+      {/* Desk top */}
+      <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.8, -2.1]} castShadow receiveShadow>
+        <meshToonMaterial color="#1e2e44" />
       </RoundedBox>
-      <mesh position={[3.0, 0.45, -3.28]}>
-        <boxGeometry args={[0.8, 0.05, 0.02]} />
-        <meshToonMaterial color="#38d8f0" />
+      {/* Desk edge glow strip */}
+      <mesh position={[0, 0.74, -1.22]}>
+        <planeGeometry args={[6.1, 0.02]} />
+        <meshBasicMaterial color="#00d8ff" transparent opacity={0.6} />
       </mesh>
+      {/* Desk legs */}
+      {([-2.75, 2.75] as number[]).map((x) => (
+        <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.4, -2.1]} castShadow>
+          <meshToonMaterial color="#16222e" />
+        </RoundedBox>
+      ))}
 
-      <MaintenanceDrone />
+      <MaintenanceBot />
+      <SpaceDebris />
     </>
   );
 }
