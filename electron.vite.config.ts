@@ -22,6 +22,9 @@ export default defineConfig({
     root: resolve(__dirname, 'src/renderer'),
     define: {
       global: 'globalThis',
+      'process.env': '{}',
+      'process.browser': 'true',
+      'process.version': '"v18.0.0"',
     },
     resolve: {
       alias: {
