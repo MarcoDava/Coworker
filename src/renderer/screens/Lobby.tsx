@@ -8,7 +8,7 @@ export type LobbyConfig = {
   avatarSeed: string;
   room: string;
   role: 'host' | 'guest';
-  durationMin: 25 | 50 | 90;
+  durationMin: number;
   signalingUrl: string;
 };
 
@@ -122,8 +122,10 @@ export function Lobby({ onStart }: Props) {
   const [bio, setBio] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [room, setRoom] = useState(randomCode());
-  const [duration, setDuration] = useState<25 | 50 | 90>(25);
-  const [signalingUrl, setSignalingUrl] = useState('ws://localhost:8787');
+  const [duration, setDuration] = useState(25);
+  const [durationInput, setDurationInput] = useState('25');
+  const [signalingUrl, setSignalingUrl] = useState('wss://coworker-production-d667.up.railway.app');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [joined, setJoined] = useState(false);
   const [members, setMembers] = useState<LobbyMember[]>([]);
   const [hostId, setHostId] = useState<string | null>(null);
@@ -390,15 +392,41 @@ export function Lobby({ onStart }: Props) {
 
                 <label>
                   Duration
-                  <select
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value) as 25 | 50 | 90)}
-                    disabled={!isLeader && joined}
-                  >
-                    <option value={25}>25 minutes</option>
-                    <option value={50}>50 minutes</option>
-                    <option value={90}>90 minutes</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={480}
+                      value={durationInput}
+                      onChange={(e) => {
+                        setDurationInput(e.target.value);
+                        const n = parseInt(e.target.value, 10);
+                        if (!isNaN(n) && n >= 1) setDuration(n);
+                      }}
+                      disabled={!isLeader && joined}
+                      style={{ width: 72, textAlign: 'center' }}
+                    />
+                    <span style={{ color: 'var(--text-mute)', fontSize: 13 }}>min</span>
+                    <div style={{ display: 'flex', gap: 4, marginLeft: 4 }}>
+                      {[25, 50, 90].map((n) => (
+                        <button
+                          key={n}
+                          disabled={!isLeader && joined}
+                          onClick={() => { setDuration(n); setDurationInput(String(n)); }}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 12,
+                            borderRadius: 6,
+                            background: duration === n ? 'rgba(124,108,255,0.2)' : 'rgba(255,255,255,0.04)',
+                            borderColor: duration === n ? 'var(--accent)' : undefined,
+                            color: duration === n ? 'var(--accent)' : 'var(--text-dim)',
+                          }}
+                        >
+                          {n}m
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </label>
 
                 <label>
@@ -419,10 +447,21 @@ export function Lobby({ onStart }: Props) {
                   />
                 </label>
 
-                <label>
-                  Signaling server
-                  <input value={signalingUrl} onChange={(e) => setSignalingUrl(e.target.value)} disabled={joined} />
-                </label>
+                <div>
+                  <button
+                    className="ghost"
+                    style={{ fontSize: 12, color: 'var(--text-mute)', padding: '4px 0', border: 'none', background: 'none' }}
+                    onClick={() => setShowAdvanced((v) => !v)}
+                  >
+                    {showAdvanced ? '▾' : '▸'} Advanced
+                  </button>
+                  {showAdvanced && (
+                    <label style={{ marginTop: 8 }}>
+                      Signaling server
+                      <input value={signalingUrl} onChange={(e) => setSignalingUrl(e.target.value)} disabled={joined} />
+                    </label>
+                  )}
+                </div>
               </div>
 
               <div style={card}>

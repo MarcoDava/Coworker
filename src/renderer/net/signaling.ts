@@ -16,7 +16,7 @@ export type SignalingMessage =
   | { type: 'peer-left'; id: string }
   | { type: 'signal'; from: string; payload: unknown }
   | { type: 'room-state'; hostId: string | null; members: LobbyMember[] }
-  | { type: 'session:start'; durationMin: 25 | 50 | 90 };
+  | { type: 'session:start'; durationMin: number };
 
 export class SignalingClient {
   private ws: WebSocket;
@@ -100,7 +100,7 @@ export class SignalingClient {
     this.send(JSON.stringify({ type: 'profile:update', profile }));
   }
 
-  startSession(durationMin: 25 | 50 | 90) {
+  startSession(durationMin: number) {
     this.send(JSON.stringify({ type: 'room:start', durationMin }));
   }
 

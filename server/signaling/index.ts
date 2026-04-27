@@ -20,7 +20,7 @@ type ClientMessage =
   | { type: 'join'; room: string; id: string; role?: PeerRole; profile?: LobbyProfile }
   | { type: 'signal'; to: string; payload: unknown }
   | { type: 'profile:update'; profile: LobbyProfile }
-  | { type: 'room:start'; durationMin: 25 | 50 | 90 };
+  | { type: 'room:start'; durationMin: number };
 
 const rooms = new Map<string, RoomPeer[]>();
 const wss = new WebSocketServer({ port: PORT });
