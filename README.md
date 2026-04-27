@@ -2,6 +2,14 @@
 
 A virtual co-working app where you and a friend lock in to a shared 3D workspace — each seated at a desk, each with a live view of the other's real desktop streamed onto an in-world laptop.
 
+## Download
+
+**[Download for Windows — Coworker v0.1.0](https://github.com/MarcoDava/Coworker/releases/latest)**
+
+Run the installer (`Coworker Setup x.x.x.exe`) — no extra setup needed.
+
+> macOS and Linux builds coming soon.
+
 ## How it works
 
 - **Room**: one person hosts (gets a 6-digit code), the other joins with it
