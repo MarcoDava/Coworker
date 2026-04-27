@@ -1,13 +1,17 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Float } from '@react-three/drei';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { Group } from 'three';
+import { AboutModal } from '../ui/AboutModal';
 
 type Props = { onEnter: () => void };
 
 export function Hero({ onEnter }: Props) {
+  const [showAbout, setShowAbout] = useState(false);
+
   return (
     <div style={{ position: 'relative', height: '100%', width: '100%', overflow: 'hidden' }}>
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
       {/* 3D backdrop */}
       <div style={{ position: 'absolute', inset: 0, opacity: 0.9 }}>
         <Canvas camera={{ position: [0, 0.8, 5], fov: 45 }}>
@@ -114,6 +118,22 @@ export function Hero({ onEnter }: Props) {
           run <span style={kbd}>npm run signaling</span> once before your first session
         </div>
       </div>
+
+      <button
+        className="ghost"
+        style={{
+          position: 'absolute',
+          bottom: 16,
+          right: 16,
+          fontSize: 12,
+          color: 'var(--text-mute)',
+          padding: '6px 12px',
+          borderRadius: 8,
+        }}
+        onClick={() => setShowAbout(true)}
+      >
+        About
+      </button>
     </div>
   );
 }
