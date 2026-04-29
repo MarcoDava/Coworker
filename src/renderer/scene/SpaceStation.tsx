@@ -1,4 +1,4 @@
-import { ContactShadows, Environment, Float, Mask, RoundedBox, useMask } from '@react-three/drei';
+import { ContactShadows, Environment, Float, Mask, RoundedBox, Text, useMask } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -8,10 +8,10 @@ function Porthole({ position }: { position: [number, number, number] }) {
 
   const stars = useMemo(
     () =>
-      Array.from({ length: 28 }, (_, i) => ({
-        x: -0.65 + ((i * 37 + 11) % 100) / 76,
-        y: -0.55 + ((i * 53 + 7) % 100) / 90,
-        r: 0.007 + ((i * 11) % 4) * 0.003,
+      Array.from({ length: 36 }, (_, i) => ({
+        x: -0.9 + ((i * 37 + 11) % 100) / 55.5,
+        y: -0.76 + ((i * 53 + 7) % 100) / 66,
+        r: 0.008 + ((i * 11) % 4) * 0.004,
       })),
     []
   );
@@ -19,11 +19,11 @@ function Porthole({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
       <Mask id={1} colorWrite={false} depthWrite={false}>
-        <circleGeometry args={[0.72, 32]} />
+        <circleGeometry args={[1.0, 32]} />
       </Mask>
 
       <mesh renderOrder={1}>
-        <planeGeometry args={[1.5, 1.5]} />
+        <planeGeometry args={[2.1, 2.1]} />
         <meshBasicMaterial color="#010610" {...stencil} />
       </mesh>
 
@@ -34,29 +34,29 @@ function Porthole({ position }: { position: [number, number, number] }) {
         </mesh>
       ))}
 
-      <mesh position={[0.22, -0.2, 0.02]} renderOrder={2}>
-        <circleGeometry args={[0.16, 20]} />
+      <mesh position={[0.30, -0.28, 0.02]} renderOrder={2}>
+        <circleGeometry args={[0.22, 20]} />
         <meshBasicMaterial color="#2255aa" {...stencil} />
       </mesh>
-      <mesh position={[0.22, -0.2, 0.025]} renderOrder={3}>
-        <ringGeometry args={[0.19, 0.25, 20]} />
+      <mesh position={[0.30, -0.28, 0.025]} renderOrder={3}>
+        <ringGeometry args={[0.26, 0.35, 20]} />
         <meshBasicMaterial color="#4477cc" transparent opacity={0.7} {...stencil} />
       </mesh>
 
       <mesh>
-        <torusGeometry args={[0.72, 0.09, 8, 32]} />
+        <torusGeometry args={[1.0, 0.10, 8, 32]} />
         <meshToonMaterial color="#3d4d6d" />
       </mesh>
       <mesh>
-        <torusGeometry args={[0.86, 0.06, 6, 32]} />
+        <torusGeometry args={[1.2, 0.07, 6, 32]} />
         <meshToonMaterial color="#2a3550" />
       </mesh>
 
       {Array.from({ length: 8 }, (_, i) => {
         const a = (i / 8) * Math.PI * 2;
         return (
-          <mesh key={i} position={[Math.cos(a) * 0.88, Math.sin(a) * 0.88, 0.07]}>
-            <sphereGeometry args={[0.032, 8, 8]} />
+          <mesh key={i} position={[Math.cos(a) * 1.22, Math.sin(a) * 1.22, 0.07]}>
+            <sphereGeometry args={[0.044, 8, 8]} />
             <meshToonMaterial color="#6a7a9a" />
           </mesh>
         );
@@ -68,15 +68,28 @@ function Porthole({ position }: { position: [number, number, number] }) {
 function EquipmentPanel({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
   const lights = useMemo(
     () => [
-      { x: -0.28, y: 0.18, color: '#00ff88' },
-      { x: -0.12, y: 0.18, color: '#00ff88' },
-      { x: 0.04, y: 0.18, color: '#ff4466' },
-      { x: 0.2, y: 0.18, color: '#00ccff' },
-      { x: -0.28, y: 0.04, color: '#ffcc00' },
-      { x: -0.12, y: 0.04, color: '#00ccff' },
+      { x: -0.28, y: 0.18, color: '#00ff88', blinkRate: 0 },
+      { x: -0.12, y: 0.18, color: '#00ff88', blinkRate: 1.2 },
+      { x: 0.04, y: 0.18, color: '#ff4466', blinkRate: 0.7 },
+      { x: 0.2, y: 0.18, color: '#00ccff', blinkRate: 0 },
+      { x: -0.28, y: 0.04, color: '#ffcc00', blinkRate: 2.1 },
+      { x: -0.12, y: 0.04, color: '#00ccff', blinkRate: 0 },
     ],
     []
   );
+
+  const lightRefs = useRef<(THREE.Mesh | null)[]>([]);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    lights.forEach((l, i) => {
+      const mesh = lightRefs.current[i];
+      if (!mesh || l.blinkRate === 0) return;
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      const on = Math.sin(t * l.blinkRate * Math.PI * 2) > 0;
+      mat.opacity = on ? 1.0 : 0.18;
+    });
+  });
 
   return (
     <group position={position} rotation={rotation}>
@@ -85,12 +98,12 @@ function EquipmentPanel({ position, rotation }: { position: [number, number, num
       </RoundedBox>
       <mesh position={[0, -0.08, 0.042]}>
         <planeGeometry args={[0.56, 0.22]} />
-        <meshBasicMaterial color="#080e1a" />
+        <meshBasicMaterial color="#060c18" />
       </mesh>
       {lights.map((l, i) => (
-        <mesh key={i} position={[l.x, l.y, 0.043]}>
-          <circleGeometry args={[0.03, 8]} />
-          <meshBasicMaterial color={l.color} />
+        <mesh key={i} ref={(el) => { lightRefs.current[i] = el; }} position={[l.x, l.y, 0.043]}>
+          <circleGeometry args={[0.034, 8]} />
+          <meshBasicMaterial color={l.color} transparent />
         </mesh>
       ))}
     </group>
@@ -220,57 +233,57 @@ function SpaceDebris() {
 export function SpaceStation() {
   return (
     <>
-      <color attach="background" args={['#060c18']} />
-      <fog attach="fog" args={['#060c18', 7, 17]} />
+      <color attach="background" args={['#080e20']} />
+      <fog attach="fog" args={['#080e20', 7, 17]} />
       <Environment preset="night" />
-      <ambientLight intensity={0.38} color="#88aacc" />
+      <ambientLight intensity={0.55} color="#66ccff" />
       <directionalLight
         position={[4, 6, 5]}
-        intensity={0.75}
-        color="#a0c8e8"
+        intensity={0.9}
+        color="#aaddff"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <directionalLight position={[-5, 3, -2]} intensity={0.18} color="#4466aa" />
+      <directionalLight position={[-5, 3, -2]} intensity={0.28} color="#4488ff" />
 
       <ContactShadows position={[0, 0.02, -2.1]} opacity={0.5} scale={11} blur={1.8} far={4.5} />
 
       {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[24, 24]} />
-        <meshToonMaterial color="#141c2c" />
+        <meshToonMaterial color="#1a2640" />
       </mesh>
 
       {/* Floor LED strips */}
       {Array.from({ length: 11 }, (_, i) => (
         <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, -5.5 + i * 1.05]}>
-          <planeGeometry args={[24, 0.04]} />
-          <meshBasicMaterial color="#00d8ff" transparent opacity={0.38} />
+          <planeGeometry args={[24, 0.05]} />
+          <meshBasicMaterial color="#00eeff" transparent opacity={0.55} />
         </mesh>
       ))}
 
       {/* Landing pad ring decal */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, -2.7]}>
         <ringGeometry args={[1.85, 2.05, 32]} />
-        <meshBasicMaterial color="#00d8ff" transparent opacity={0.55} />
+        <meshBasicMaterial color="#00eeff" transparent opacity={0.7} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, -2.7]}>
         <ringGeometry args={[0.6, 0.72, 32]} />
-        <meshBasicMaterial color="#00d8ff" transparent opacity={0.3} />
+        <meshBasicMaterial color="#00eeff" transparent opacity={0.5} />
       </mesh>
 
       {/* Back wall */}
       <RoundedBox args={[15.5, 6.2, 0.5]} radius={0.28} smoothness={4} position={[0, 3.1, -6]} receiveShadow>
-        <meshToonMaterial color="#111c2e" />
+        <meshToonMaterial color="#182238" />
       </RoundedBox>
       {/* Back wall accent strip */}
       <RoundedBox args={[15.1, 0.1, 0.15]} radius={0.04} smoothness={3} position={[0, 0.6, -5.72]}>
-        <meshToonMaterial color="#00c8f0" />
+        <meshToonMaterial color="#00eeff" />
       </RoundedBox>
       <mesh position={[0, 0.6, -5.72]}>
         <planeGeometry args={[15.0, 0.08]} />
-        <meshBasicMaterial color="#00d8ff" transparent opacity={0.5} />
+        <meshBasicMaterial color="#00eeff" transparent opacity={0.65} />
       </mesh>
 
       {/* Porthole windows */}
@@ -287,7 +300,7 @@ export function SpaceStation() {
           position={[x, 3, -0.35]}
           receiveShadow
         >
-          <meshToonMaterial color="#121c2c" />
+          <meshToonMaterial color="#1a2840" />
         </RoundedBox>
       ))}
 
@@ -302,13 +315,13 @@ export function SpaceStation() {
 
       {/* Ceiling */}
       <RoundedBox args={[15.2, 0.5, 11.8]} radius={0.22} smoothness={4} position={[0, 6.1, -0.2]}>
-        <meshToonMaterial color="#101828" />
+        <meshToonMaterial color="#141e30" />
       </RoundedBox>
 
       {/* Ceiling duct strips */}
       {([-2.8, 0, 2.8] as number[]).map((x) => (
         <RoundedBox key={x} args={[0.22, 0.14, 10.5]} radius={0.06} smoothness={3} position={[x, 5.82, -0.4]}>
-          <meshToonMaterial color="#1a2a3a" />
+          <meshToonMaterial color="#22344e" />
         </RoundedBox>
       ))}
 
@@ -325,15 +338,33 @@ export function SpaceStation() {
       </RoundedBox>
       {/* Desk edge glow strip */}
       <mesh position={[0, 0.67, -1.22]}>
-        <planeGeometry args={[6.1, 0.02]} />
-        <meshBasicMaterial color="#00d8ff" transparent opacity={0.6} />
+        <planeGeometry args={[6.1, 0.03]} />
+        <meshBasicMaterial color="#00eeff" transparent opacity={0.8} />
       </mesh>
+      <pointLight position={[0, 0.78, -1.2]} intensity={0.35} distance={2.5} color="#00eeff" />
       {/* Desk legs */}
       {([-2.75, 2.75] as number[]).map((x) => (
         <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>
           <meshToonMaterial color="#16222e" />
         </RoundedBox>
       ))}
+
+      {/* Space station ID sign on right wall */}
+      <group position={[6.6, 3.8, -1.5]} rotation={[0, -Math.PI / 2, 0]}>
+        <RoundedBox args={[1.8, 0.44, 0.06]} radius={0.07} smoothness={3}>
+          <meshToonMaterial color="#0e1e30" />
+        </RoundedBox>
+        <Text
+          position={[0, 0, 0.04]}
+          fontSize={0.22}
+          color="#00eeff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          DEEP FOCUS ZONE
+        </Text>
+        <pointLight position={[0, 0, 0.1]} intensity={0.2} distance={1.5} color="#00eeff" />
+      </group>
 
       <MaintenanceBot />
       <SpaceDebris />

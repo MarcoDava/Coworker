@@ -527,6 +527,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         <Avatar
           position={[selfLaptop[0], 0, selfLaptop[2] + 0.8]}
           color="#5aa8ff"
+          skinColor="#f8d2aa"
+          hairColor="#3a2010"
           rotationY={Math.PI}
           isTyping={selfTyping}
           transparent={cameraMode === 'firstPerson'}
@@ -534,6 +536,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         <Avatar
           position={[peerLaptop[0], 0, peerLaptop[2] + 1.15]}
           color="#ff8e5a"
+          skinColor="#fcd0b0"
+          hairColor="#1a1010"
           rotationY={Math.PI}
           isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
           isTyping={peerTyping}

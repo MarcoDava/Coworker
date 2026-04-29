@@ -1,4 +1,4 @@
-import { ContactShadows, Environment, RoundedBox } from '@react-three/drei';
+import { ContactShadows, Environment, RoundedBox, Text } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -122,13 +122,26 @@ export function Skyscraper() {
         <meshToonMaterial color="#0c1020" />
       </mesh>
 
-      {/* Subtle floor grid lines */}
+      {/* Neon floor grid lines */}
       {Array.from({ length: 13 }, (_, i) => (
         <mesh key={`fx-${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, -0.5 + (i - 6) * 0.9]}>
-          <planeGeometry args={[24, 0.018]} />
-          <meshBasicMaterial color="#1c2840" transparent opacity={0.3} />
+          <planeGeometry args={[24, 0.022]} />
+          <meshBasicMaterial color="#2255cc" transparent opacity={0.45} />
         </mesh>
       ))}
+      {/* Cross grid lines */}
+      {Array.from({ length: 7 }, (_, i) => (
+        <mesh key={`fy-${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[(i - 3) * 1.8, 0.002, -2.7]}>
+          <planeGeometry args={[0.022, 12]} />
+          <meshBasicMaterial color="#2255cc" transparent opacity={0.3} />
+        </mesh>
+      ))}
+      {/* Floor edge neon strip */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, -5.5]}>
+        <planeGeometry args={[14, 0.06]} />
+        <meshBasicMaterial color="#4466ff" transparent opacity={0.6} />
+      </mesh>
+      <pointLight position={[0, 0.1, -5.4]} intensity={0.4} distance={4} color="#4466ff" />
 
       {/* Sky backdrop */}
       <mesh position={[0, 4.5, -15]}>
@@ -197,26 +210,49 @@ export function Skyscraper() {
         <meshToonMaterial color="#0e1422" />
       </RoundedBox>
 
-      {/* Ceiling LED panels */}
+      {/* Ceiling LED panels — vibrant color */}
       {([-3.6, -1.2, 1.2, 3.6] as number[]).map((x) => (
         <group key={x}>
           <mesh rotation={[Math.PI / 2, 0, 0]} position={[x, 5.84, -2.6]}>
             <planeGeometry args={[1.6, 0.06]} />
-            <meshBasicMaterial color="#99b8ff" transparent opacity={0.55} />
+            <meshBasicMaterial color="#6688ff" transparent opacity={0.75} />
           </mesh>
-          <pointLight position={[x, 5.5, -2.6]} intensity={0.55} distance={4.8} color="#8899cc" />
+          <pointLight position={[x, 5.5, -2.6]} intensity={0.75} distance={5.2} color="#5577ff" />
         </group>
       ))}
+      {/* Colored neon accent lights on side walls */}
+      <pointLight position={[-6.5, 2.5, -2.5]} intensity={0.55} distance={5} color="#cc44ff" />
+      <pointLight position={[6.5, 2.5, -2.5]} intensity={0.55} distance={5} color="#ff4488" />
+
+      {/* Neon "LOCKED IN" sign on left wall */}
+      <group position={[-6.6, 3.5, -3.0]} rotation={[0, Math.PI / 2, 0]}>
+        <RoundedBox args={[2.2, 0.52, 0.06]} radius={0.08} smoothness={3}>
+          <meshToonMaterial color="#0a0e18" />
+        </RoundedBox>
+        <Text
+          position={[0, 0, 0.04]}
+          fontSize={0.28}
+          color="#cc44ff"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.008}
+          outlineColor="#8822cc"
+        >
+          LOCKED IN
+        </Text>
+        <pointLight position={[0, 0, 0.15]} intensity={0.35} distance={2.0} color="#cc44ff" />
+      </group>
 
       {/* Desk */}
       <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, -2.1]} castShadow receiveShadow>
         <meshToonMaterial color="#131c30" />
       </RoundedBox>
-      {/* Desk edge glow */}
+      {/* Desk edge glow — vibrant neon */}
       <mesh position={[0, 0.67, -1.22]}>
-        <planeGeometry args={[6.1, 0.02]} />
-        <meshBasicMaterial color="#4466cc" transparent opacity={0.5} />
+        <planeGeometry args={[6.1, 0.03]} />
+        <meshBasicMaterial color="#6688ff" transparent opacity={0.75} />
       </mesh>
+      <pointLight position={[0, 0.8, -1.2]} intensity={0.3} distance={2.5} color="#6688ff" />
       {/* Desk legs */}
       {([-2.75, 2.75] as number[]).map((x) => (
         <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>

@@ -1,7 +1,8 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Float } from '@react-three/drei';
+import { Environment, Float, RoundedBox } from '@react-three/drei';
 import { useRef, useState } from 'react';
 import type { Group } from 'three';
+import * as THREE from 'three';
 import { AboutModal } from '../ui/AboutModal';
 
 type Props = { onEnter: () => void };
@@ -156,27 +157,87 @@ function FloatingDesks() {
 }
 
 function MiniDesk({ position, color }: { position: [number, number, number]; color: string }) {
+  const skinColor = color === '#5aa8ff' ? '#f8d2aa' : '#fcd0b0';
+  const hairColor = color === '#5aa8ff' ? '#3a2010' : '#1a1010';
   return (
     <group position={position}>
+      {/* Desk */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[1.6, 0.08, 1]} />
-        <meshStandardMaterial color="#5a3e26" />
+        <meshToonMaterial color="#aa7040" />
       </mesh>
+      {/* Laptop base */}
       <mesh position={[0, 0.1, 0]}>
         <boxGeometry args={[1, 0.04, 0.65]} />
-        <meshStandardMaterial color="#1a1a1a" />
+        <meshToonMaterial color="#1a1a1a" />
       </mesh>
+      {/* Screen */}
       <mesh position={[0, 0.45, -0.3]} rotation={[-0.25, 0, 0]}>
         <boxGeometry args={[1, 0.65, 0.03]} />
-        <meshStandardMaterial color="#0a0a0a" emissive={color} emissiveIntensity={0.35} />
+        <meshStandardMaterial color="#0a0a0a" emissive={color} emissiveIntensity={0.5} />
       </mesh>
-      <mesh position={[0, -0.7, 0.2]}>
-        <capsuleGeometry args={[0.22, 0.35, 6, 10]} />
-        <meshStandardMaterial color={color} />
+      {/* Body outline */}
+      <RoundedBox args={[0.47, 0.41, 0.37]} radius={0.14} smoothness={4} position={[0, -0.65, 0.22]}>
+        <meshBasicMaterial color="#1a1008" side={THREE.BackSide} />
+      </RoundedBox>
+      {/* Body — Rec Room puffy */}
+      <RoundedBox args={[0.44, 0.38, 0.34]} radius={0.13} smoothness={4} position={[0, -0.65, 0.22]}>
+        <meshToonMaterial color={color} />
+      </RoundedBox>
+      {/* Head outline */}
+      <mesh position={[0, -0.24, 0.22]}>
+        <sphereGeometry args={[0.252, 14, 14]} />
+        <meshBasicMaterial color="#1a1008" side={THREE.BackSide} />
       </mesh>
-      <mesh position={[0, -0.25, 0.2]}>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial color="#f4c9a0" />
+      {/* Head — big sphere */}
+      <mesh position={[0, -0.24, 0.22]}>
+        <sphereGeometry args={[0.24, 14, 14]} />
+        <meshToonMaterial color={skinColor} />
+      </mesh>
+      {/* Hair — flat top */}
+      <RoundedBox args={[0.44, 0.11, 0.40]} radius={0.07} smoothness={4} position={[0, -0.05, 0.20]}>
+        <meshToonMaterial color={hairColor} />
+      </RoundedBox>
+      {/* Eyes white */}
+      <mesh position={[-0.085, -0.21, 0.43]}>
+        <sphereGeometry args={[0.048, 8, 8]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
+      <mesh position={[0.085, -0.21, 0.43]}>
+        <sphereGeometry args={[0.048, 8, 8]} />
+        <meshBasicMaterial color="white" />
+      </mesh>
+      {/* Iris */}
+      <mesh position={[-0.085, -0.21, 0.441]}>
+        <circleGeometry args={[0.032, 10]} />
+        <meshBasicMaterial color="#3a88cc" />
+      </mesh>
+      <mesh position={[0.085, -0.21, 0.441]}>
+        <circleGeometry args={[0.032, 10]} />
+        <meshBasicMaterial color="#3a88cc" />
+      </mesh>
+      {/* Pupils */}
+      <mesh position={[-0.085, -0.21, 0.449]}>
+        <circleGeometry args={[0.018, 8]} />
+        <meshBasicMaterial color="#1a1a2e" />
+      </mesh>
+      <mesh position={[0.085, -0.21, 0.449]}>
+        <circleGeometry args={[0.018, 8]} />
+        <meshBasicMaterial color="#1a1a2e" />
+      </mesh>
+      {/* Cheek blushes */}
+      <mesh position={[-0.14, -0.27, 0.44]}>
+        <circleGeometry args={[0.038, 8]} />
+        <meshBasicMaterial color="#f0a090" transparent opacity={0.35} />
+      </mesh>
+      <mesh position={[0.14, -0.27, 0.44]}>
+        <circleGeometry args={[0.038, 8]} />
+        <meshBasicMaterial color="#f0a090" transparent opacity={0.35} />
+      </mesh>
+      {/* Smile */}
+      <mesh position={[0, -0.30, 0.455]} rotation={[0, 0, Math.PI]}>
+        <torusGeometry args={[0.055, 0.010, 6, 10, Math.PI]} />
+        <meshBasicMaterial color="#c07060" />
       </mesh>
     </group>
   );

@@ -1,7 +1,66 @@
-import { ContactShadows, Environment, Float, RoundedBox } from '@react-three/drei';
+import { ContactShadows, Environment, Float, RoundedBox, Text } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+
+function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
+  const STRIP = W * 2.2;
+  const groupRef = useRef<THREE.Group>(null);
+
+  const buildings = useMemo(() => {
+    const count = 18;
+    return Array.from({ length: count }, (_, i) => {
+      const bw = 0.05 + ((i * 17 + 3) % 5) * 0.025;
+      const bh = 0.1 + ((i * 29 + 7) % 10) * 0.034;
+      const x = (i / count) * STRIP;
+      const yCenter = -H / 2 + bh / 2;
+      const wins: { wx: number; wy: number; color: string }[] = [];
+      const cols = Math.max(1, Math.floor(bw / 0.02));
+      const rows = Math.max(1, Math.floor(bh / 0.024));
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rows; r++) {
+          if (((c * 3 + r * 5 + i * 7) % 10) <= 3) continue;
+          wins.push({
+            wx: -bw / 2 + (c + 0.5) * (bw / cols),
+            wy: -bh / 2 + (r + 0.5) * (bh / rows),
+            color: (c + r + i) % 3 === 0 ? '#ffcc88' : (c + r + i) % 3 === 1 ? '#ffe4b0' : '#aaccff',
+          });
+        }
+      }
+      return { x, bw, bh, yCenter, wins };
+    });
+  }, [W, H, STRIP]);
+
+  useFrame((_, dt) => {
+    const g = groupRef.current;
+    if (!g) return;
+    g.position.x -= 0.24 * dt;
+    if (g.position.x < -STRIP) g.position.x += STRIP;
+  });
+
+  const Z = -D * 0.43;
+
+  return (
+    <group ref={groupRef}>
+      {([0, STRIP] as number[]).map((offset) =>
+        buildings.map((b, i) => (
+          <group key={`${offset}-${i}`} position={[b.x + offset - W, b.yCenter, Z]}>
+            <mesh>
+              <boxGeometry args={[b.bw, b.bh, 0.001]} />
+              <meshBasicMaterial color="#080c08" />
+            </mesh>
+            {b.wins.map((w, j) => (
+              <mesh key={j} position={[w.wx, w.wy, 0.001]}>
+                <planeGeometry args={[0.009, 0.007]} />
+                <meshBasicMaterial color={w.color} />
+              </mesh>
+            ))}
+          </group>
+        ))
+      )}
+    </group>
+  );
+}
 
 function TrainWindow({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
   const W = 1.1;
@@ -15,17 +74,6 @@ function TrainWindow({ position, rotation }: { position: [number, number, number
         x: -0.45 + ((i * 41 + 3) % 100) / 111,
         y: 0.02 + ((i * 31 + 7) % 100) / 200,
         r: 0.006 + ((i * 13) % 3) * 0.003,
-      })),
-    []
-  );
-
-  const cityLights = useMemo(
-    () =>
-      Array.from({ length: 10 }, (_, i) => ({
-        x: -0.42 + ((i * 53 + 5) % 100) / 119,
-        w: 0.025 + ((i * 7) % 4) * 0.01,
-        h: 0.02 + ((i * 11) % 4) * 0.008,
-        color: (i % 3 === 0 ? '#ffbb44' : i % 3 === 1 ? '#ff8822' : '#ffdd88'),
       })),
     []
   );
@@ -62,13 +110,8 @@ function TrainWindow({ position, rotation }: { position: [number, number, number
         <meshBasicMaterial color="#0c100a" />
       </mesh>
 
-      {/* City lights */}
-      {cityLights.map((l, i) => (
-        <mesh key={i} position={[l.x, -0.24 + ((i * 7) % 5) * 0.02, -D * 0.44]}>
-          <planeGeometry args={[l.w, l.h]} />
-          <meshBasicMaterial color={l.color} />
-        </mesh>
-      ))}
+      {/* Scrolling city buildings */}
+      <ScrollingCityStrip D={D} W={W} H={H} />
 
       {/* Frame bezels — thick dark wood */}
       <RoundedBox args={[W + F * 2, F, D]} radius={0.03} smoothness={3} position={[0, H / 2 + F / 2, 0]}>
@@ -132,17 +175,17 @@ function LuggageRack() {
 function BenchSeat({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
   return (
     <group position={position} rotation={rotation}>
-      {/* Seat cushion */}
+      {/* Seat cushion — vibrant teal */}
       <RoundedBox args={[1.6, 0.14, 0.72]} radius={0.1} smoothness={3} position={[0, 0.07, 0]} castShadow>
-        <meshToonMaterial color="#e8d9b0" />
+        <meshToonMaterial color="#28aacc" />
       </RoundedBox>
       {/* Back rest */}
       <RoundedBox args={[1.6, 0.68, 0.12]} radius={0.08} smoothness={3} position={[0, 0.5, -0.3]} castShadow>
-        <meshToonMaterial color="#d8c8a0" />
+        <meshToonMaterial color="#2298b8" />
       </RoundedBox>
       {/* Seat frame */}
       <RoundedBox args={[1.62, 0.08, 0.74]} radius={0.04} smoothness={3} position={[0, -0.02, 0]}>
-        <meshToonMaterial color="#3a2010" />
+        <meshToonMaterial color="#4a2e16" />
       </RoundedBox>
     </group>
   );
@@ -211,19 +254,19 @@ export function Train() {
 
   return (
     <>
-      <color attach="background" args={['#100a04']} />
-      <fog attach="fog" args={['#100a04', 7, 17]} />
+      <color attach="background" args={['#1e1008']} />
+      <fog attach="fog" args={['#1e1008', 7, 17]} />
       <Environment preset="sunset" />
-      <ambientLight intensity={0.45} color="#ffcc88" />
+      <ambientLight intensity={0.65} color="#ffcc66" />
       <directionalLight
         position={[4, 6, 5]}
-        intensity={0.9}
-        color="#ffbb66"
+        intensity={1.1}
+        color="#ffcc66"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <directionalLight position={[-4, 2.5, -2]} intensity={0.18} color="#ff9944" />
+      <directionalLight position={[-4, 2.5, -2]} intensity={0.24} color="#ff9933" />
 
       <ContactShadows position={[0, 0.02, -2.1]} opacity={0.42} scale={11} blur={1.6} far={4.5} />
 
@@ -231,43 +274,43 @@ export function Train() {
         {/* Wood floor */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[24, 24]} />
-          <meshToonMaterial color="#2a1808" />
+          <meshToonMaterial color="#3c2010" />
         </mesh>
 
         {/* Floor plank lines */}
         {Array.from({ length: 11 }, (_, i) => (
           <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, -5.5 + i * 1.05]}>
             <planeGeometry args={[24, 0.04]} />
-            <meshBasicMaterial color="#3e2412" transparent opacity={0.48} />
+            <meshBasicMaterial color="#5a3418" transparent opacity={0.5} />
           </mesh>
         ))}
 
-        {/* Aisle runner rug */}
+        {/* Aisle runner rug — vivid red */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -2.7]} receiveShadow>
           <planeGeometry args={[2.4, 10.0]} />
-          <meshToonMaterial color="#8a3020" transparent opacity={0.85} />
+          <meshToonMaterial color="#cc2820" transparent opacity={0.9} />
         </mesh>
 
         {/* Back wall */}
         <RoundedBox args={[15.5, 6.2, 0.5]} radius={0.28} smoothness={4} position={[0, 3.1, -6]} receiveShadow>
-          <meshToonMaterial color="#3a2010" />
+          <meshToonMaterial color="#5a3018" />
         </RoundedBox>
         {/* Back wall wainscot panel */}
         <RoundedBox args={[15.1, 1.6, 0.2]} radius={0.12} smoothness={4} position={[0, 0.9, -5.72]}>
-          <meshToonMaterial color="#2e1808" />
+          <meshToonMaterial color="#3e2010" />
         </RoundedBox>
 
         {/* Side walls */}
         {([-7.2, 7.2] as number[]).map((x) => (
           <group key={x}>
             <RoundedBox args={[0.42, 6, 11.6]} radius={0.2} smoothness={4} position={[x, 3, -0.35]} receiveShadow>
-              <meshToonMaterial color="#4a2e16" />
+              <meshToonMaterial color="#6a3a1a" />
             </RoundedBox>
 
             {/* Wood wall panels (vertical strips) */}
             {[-4.2, -2.6, -1.0, 0.6].map((z) => (
               <RoundedBox key={z} args={[0.08, 4.8, 1.1]} radius={0.03} smoothness={3} position={[x > 0 ? x - 0.22 : x + 0.22, 2.8, z]}>
-                <meshToonMaterial color="#38200e" />
+                <meshToonMaterial color="#4e2a10" />
               </RoundedBox>
             ))}
 
@@ -285,7 +328,7 @@ export function Train() {
 
         {/* Ceiling */}
         <RoundedBox args={[15.2, 0.5, 11.8]} radius={0.22} smoothness={4} position={[0, 6.1, -0.2]}>
-          <meshToonMaterial color="#2e1c0c" />
+          <meshToonMaterial color="#5a3c1e" />
         </RoundedBox>
 
         {/* Globe lamps hanging from ceiling */}
@@ -329,6 +372,22 @@ export function Train() {
             </mesh>
           </Float>
         ))}
+
+        {/* Destination sign — Rec Room style */}
+        <group position={[0, 4.8, -5.8]}>
+          <RoundedBox args={[3.2, 0.5, 0.08]} radius={0.1} smoothness={3}>
+            <meshToonMaterial color="#2a1410" />
+          </RoundedBox>
+          <Text
+            position={[0, 0, 0.05]}
+            fontSize={0.24}
+            color="#ffcc44"
+            anchorX="center"
+            anchorY="middle"
+          >
+            NEXT STOP: FOCUS
+          </Text>
+        </group>
 
         <ConductorBot />
       </group>
