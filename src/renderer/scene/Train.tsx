@@ -10,20 +10,20 @@ function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
   const buildings = useMemo(() => {
     const count = 18;
     return Array.from({ length: count }, (_, i) => {
-      const bw = 0.05 + ((i * 17 + 3) % 5) * 0.025;
-      const bh = 0.1 + ((i * 29 + 7) % 10) * 0.034;
+      const bw = 0.08 + ((i * 17 + 3) % 5) * 0.04;
+      const bh = 0.22 + ((i * 29 + 7) % 10) * 0.055;
       const x = (i / count) * STRIP;
       const yCenter = -H / 2 + bh / 2;
       const wins: { wx: number; wy: number; color: string }[] = [];
-      const cols = Math.max(1, Math.floor(bw / 0.02));
-      const rows = Math.max(1, Math.floor(bh / 0.024));
+      const cols = Math.max(1, Math.floor(bw / 0.03));
+      const rows = Math.max(1, Math.floor(bh / 0.038));
       for (let c = 0; c < cols; c++) {
         for (let r = 0; r < rows; r++) {
-          if (((c * 3 + r * 5 + i * 7) % 10) <= 3) continue;
+          if (((c * 3 + r * 5 + i * 7) % 10) <= 2) continue;
           wins.push({
             wx: -bw / 2 + (c + 0.5) * (bw / cols),
             wy: -bh / 2 + (r + 0.5) * (bh / rows),
-            color: (c + r + i) % 3 === 0 ? '#ffcc88' : (c + r + i) % 3 === 1 ? '#ffe4b0' : '#aaccff',
+            color: (c + r + i) % 3 === 0 ? '#ffcc66' : (c + r + i) % 3 === 1 ? '#ffaa44' : '#88bbff',
           });
         }
       }
@@ -47,11 +47,11 @@ function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
           <group key={`${offset}-${i}`} position={[b.x + offset - W, b.yCenter, Z]}>
             <mesh>
               <boxGeometry args={[b.bw, b.bh, 0.001]} />
-              <meshBasicMaterial color="#080c08" />
+              <meshBasicMaterial color="#1c2030" />
             </mesh>
             {b.wins.map((w, j) => (
-              <mesh key={j} position={[w.wx, w.wy, 0.001]}>
-                <planeGeometry args={[0.009, 0.007]} />
+              <mesh key={j} position={[w.wx, w.wy, 0.002]}>
+                <planeGeometry args={[0.016, 0.012]} />
                 <meshBasicMaterial color={w.color} />
               </mesh>
             ))}
@@ -83,7 +83,7 @@ function TrainWindow({ position, rotation }: { position: [number, number, number
       {/* Night scene backdrop */}
       <mesh position={[0, 0, -D * 0.55]}>
         <planeGeometry args={[W, H]} />
-        <meshBasicMaterial color="#04060c" />
+        <meshBasicMaterial color="#07101e" />
       </mesh>
 
       {/* Stars */}

@@ -456,7 +456,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       return `hold ${lookModifier} and drag to look around · V to switch view · M for work mode`;
     }
     if (peeking) return 'peeking - press SPACE to call out';
-    return `hold ${lookModifier} to peek · V to switch view · M for work mode`;
+    return `hold ${lookModifier} + drag to look · peek tap · V switch view · M work mode`;
   }, [cameraMode, lookModifier, peeking, screenMode, store.isPaused]);
 
   const quitReady = quitText.trim().toLowerCase() === QUIT_PHRASE;
@@ -486,7 +486,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       ref={rootRef}
       onMouseDown={(e) => {
         if (menuOpen) return;
-        if (cameraMode !== 'firstPerson' || !lookHeld) return;
+        if (!lookHeld) return;
         if (e.button !== 0) return;
         draggingRef.current = true;
         freeLookRef.current.enabled = true;
@@ -496,7 +496,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         height: '100vh',
         position: 'relative',
         cursor:
-          cameraMode === 'firstPerson' && lookHeld
+          lookHeld
             ? draggingRef.current
               ? 'grabbing'
               : 'grab'

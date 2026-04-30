@@ -59,7 +59,7 @@ export function CameraRig({ mode, peeking, selfAnchor, peerAnchor, freeLookRef }
 
     camera.getWorldDirection(currentDir.current);
     const desiredDir = goalLook.current.clone().sub(camera.position).normalize();
-    if (mode === 'firstPerson' && freeLookRef?.current.enabled) {
+    if (freeLookRef?.current.enabled) {
       const worldUp = new THREE.Vector3(0, 1, 0);
       desiredDir.applyAxisAngle(worldUp, freeLookRef.current.yaw);
       rightAxis.current.crossVectors(desiredDir, worldUp).normalize();
