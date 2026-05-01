@@ -282,6 +282,7 @@ function Cat() {
 
 function LibrarianBot() {
   const botRef = useRef<THREE.Group>(null);
+  const heldBookRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     const bot = botRef.current;
@@ -297,12 +298,12 @@ function LibrarianBot() {
     bot.rotation.y = THREE.MathUtils.lerp(bot.rotation.y, shelfSide > 0 ? -0.45 : 0.45, 0.08);
     bot.rotation.z = Math.sin(t * 2.2) * 0.08;
 
-    const heldBook = bot.getObjectByName('heldBook');
-    if (heldBook) {
-      heldBook.visible = picking;
-      heldBook.position.x = picking ? 0.22 * shelfSide : 0;
-      heldBook.position.y = picking ? -0.02 : 0;
-      heldBook.rotation.z = picking ? 0.2 * shelfSide : 0;
+    const book = heldBookRef.current;
+    if (book) {
+      book.visible = picking;
+      book.position.x = picking ? 0.22 * shelfSide : 0;
+      book.position.y = picking ? -0.02 : 0;
+      book.rotation.z = picking ? 0.2 * shelfSide : 0;
     }
   });
 
@@ -324,7 +325,7 @@ function LibrarianBot() {
           <sphereGeometry args={[0.01, 8, 8]} />
           <meshBasicMaterial color="#fff7d0" />
         </mesh>
-        <mesh name="heldBook" position={[0, 0, 0]} visible={false}>
+        <mesh ref={heldBookRef} position={[0, 0, 0]} visible={false}>
           <boxGeometry args={[0.1, 0.14, 0.08]} />
           <meshToonMaterial color="#cf8f73" />
         </mesh>
