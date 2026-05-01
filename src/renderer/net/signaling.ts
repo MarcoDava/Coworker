@@ -1,7 +1,10 @@
+import type { AvatarAppearance } from '../data/skins';
+
 export type LobbyProfile = {
   displayName: string;
   bio: string;
   avatarSeed: string;
+  appearance?: AvatarAppearance;
 };
 
 export type LobbyMember = {

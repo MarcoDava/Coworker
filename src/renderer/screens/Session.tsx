@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LobbyConfig } from './Lobby';
+import { loadSceneEnv, saveSceneEnv, type SceneEnv } from '../data/skins';
 import { Library } from '../scene/Library';
 import { SpaceStation } from '../scene/SpaceStation';
 import { Train } from '../scene/Train';
@@ -8,6 +9,7 @@ import { Skyscraper } from '../scene/Skyscraper';
 import { Laptop } from '../scene/Laptop';
 import { Avatar } from '../scene/Avatar';
 import { CameraRig, type CameraMode } from '../scene/Camera';
+import { EnvironmentPicker } from '../ui/EnvironmentPicker';
 import { Timer } from '../ui/Timer';
 import { ScoreHUD } from '../ui/ScoreHUD';
 import { ReasonPrompt } from '../ui/ReasonPrompt';
@@ -56,6 +58,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [lookHeld, setLookHeld] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [envPickerOpen, setEnvPickerOpen] = useState(false);
   const [quitText, setQuitText] = useState('');
   const [screenMode, setScreenMode] = useState(false);
   const [screenHudVisible, setScreenHudVisible] = useState(true);
@@ -69,7 +72,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerLeft, setPeerLeft] = useState(false);
   const [musicVolume, setMusicVolume] = useState(0.25);
-  const [sceneEnv, setSceneEnv] = useState<'library' | 'space' | 'train' | 'skyscraper'>('library');
+  const [sceneEnv, setSceneEnv] = useState<SceneEnv>(() => loadSceneEnv());
 
   const peerRef = useRef<PeerConnection | null>(null);
   const screenModeRef = useRef(false);
@@ -524,23 +527,30 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           onDoubleClick={() => void setScreenModeActive(true)}
         />
         <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={store.pausedByPeer} label="friend" />
-        <Avatar
-          position={[selfLaptop[0], 0, selfLaptop[2] + 0.8]}
-          color="#5aa8ff"
-          skinColor="#f8d2aa"
-          hairColor="#3a2010"
-          rotationY={Math.PI}
-          isTyping={selfTyping}
-          transparent={cameraMode === 'firstPerson'}
-        />
+        {cameraMode !== 'firstPerson' && (
+          <Avatar
+            position={[selfLaptop[0], 0, selfLaptop[2] + 0.8]}
+            color={cfg.appearance.bodyColor}
+            skinColor={cfg.appearance.skinTone}
+            hairColor={cfg.appearance.hairColor}
+            eyeColor={cfg.appearance.eyeColor}
+            chairColor={cfg.appearance.chairColor}
+            rotationY={Math.PI}
+            isTyping={selfTyping}
+            lookRef={freeLookRef}
+          />
+        )}
         <Avatar
           position={[peerLaptop[0], 0, peerLaptop[2] + 1.15]}
-          color="#ff8e5a"
-          skinColor="#fcd0b0"
-          hairColor="#1a1010"
+          color={cfg.peerAppearance.bodyColor}
+          skinColor={cfg.peerAppearance.skinTone}
+          hairColor={cfg.peerAppearance.hairColor}
+          eyeColor={cfg.peerAppearance.eyeColor}
+          chairColor={cfg.peerAppearance.chairColor}
           rotationY={Math.PI}
           isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
           isTyping={peerTyping}
+          trackCamera
         />
         <CameraRig
           mode={cameraMode}
@@ -633,6 +643,9 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                 <button style={menuPrimaryButton} onClick={() => setMenuOpen(false)}>
                   Resume
                 </button>
+                <button style={menuButton} onClick={() => { setMenuOpen(false); setEnvPickerOpen(true); }}>
+                  Environments
+                </button>
                 <button style={menuButton} onClick={() => setOptionsOpen(true)}>
                   Options
                 </button>
@@ -703,19 +716,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                     </span>
                   </div>
                 </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text)' }}>
-                  Environment
-                  <select
-                    value={sceneEnv}
-                    onChange={(e) => setSceneEnv(e.target.value as 'library' | 'space' | 'train' | 'skyscraper')}
-                    style={menuSelect}
-                  >
-                    <option value="library">Library</option>
-                    <option value="space">Space Station</option>
-                    <option value="train">Night Train</option>
-                    <option value="skyscraper">Skyscraper</option>
-                  </select>
-                </label>
                 <button
                   style={menuPrimaryButton}
                   onClick={() => {
@@ -780,6 +780,14 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             peerRef.current?.send({ type: 'reasonResolve', calloutTs: incomingReason.calloutTs, accepted: false });
             setIncomingReason(null);
           }}
+        />
+      )}
+
+      {envPickerOpen && (
+        <EnvironmentPicker
+          current={sceneEnv}
+          onChange={(env) => { setSceneEnv(env); saveSceneEnv(env); }}
+          onClose={() => setEnvPickerOpen(false)}
         />
       )}
     </div>

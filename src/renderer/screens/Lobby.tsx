@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppListEditor } from '../ui/AppListEditor';
+import { AvatarPortrait } from '../ui/AvatarPortrait';
+import { CharacterScreen } from './CharacterScreen';
+import { EnvironmentPicker } from '../ui/EnvironmentPicker';
 import { SignalingClient, type LobbyMember, type LobbyProfile } from '../net/signaling';
+import { DEFAULT_APPEARANCE, loadAppearance, loadSceneEnv, saveAppearance, type AvatarAppearance, type SceneEnv } from '../data/skins';
+import { ENVIRONMENTS } from '../data/environments';
 
 export type LobbyConfig = {
   displayName: string;
@@ -10,6 +15,8 @@ export type LobbyConfig = {
   role: 'host' | 'guest';
   durationMin: number;
   signalingUrl: string;
+  appearance: AvatarAppearance;
+  peerAppearance: AvatarAppearance;
 };
 
 type Props = { onStart: (cfg: LobbyConfig) => void };
@@ -47,20 +54,6 @@ function fallbackBio(seed: string) {
   return BIO_FALLBACKS[total % BIO_FALLBACKS.length];
 }
 
-function avatarGradient(seed: string) {
-  let total = 0;
-  for (const char of seed) total += char.charCodeAt(0);
-  const hueA = total % 360;
-  const hueB = (total * 1.7) % 360;
-  return `linear-gradient(135deg, hsl(${hueA} 80% 72%), hsl(${hueB} 78% 62%))`;
-}
-
-function initials(name: string) {
-  const cleaned = name.trim().split(/\s+/).filter(Boolean);
-  if (cleaned.length === 0) return '?';
-  return cleaned.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
-}
-
 function QueueCard({
   member,
   isSelf,
@@ -71,43 +64,27 @@ function QueueCard({
   isLeader: boolean;
 }) {
   const bio = member.profile.bio.trim() || fallbackBio(member.profile.avatarSeed || member.id);
+  const appearance = member.profile.appearance ?? DEFAULT_APPEARANCE;
 
   return (
     <div
       style={{
-        display: 'grid',
-        gridTemplateColumns: '72px 1fr',
-        gap: 16,
-        alignItems: 'center',
-        padding: 18,
+        display: 'flex',
+        flexDirection: 'column',
         borderRadius: 24,
         border: isSelf ? '1px solid rgba(133,190,255,0.45)' : '1px solid rgba(255,255,255,0.08)',
         background: isSelf ? 'rgba(109, 160, 245, 0.08)' : 'rgba(255,255,255,0.03)',
+        overflow: 'hidden',
       }}
     >
-      <div
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: 22,
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: 24,
-          fontWeight: 800,
-          color: '#101522',
-          background: avatarGradient(member.profile.avatarSeed || member.id),
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)',
-        }}
-      >
-        {initials(member.profile.displayName)}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <AvatarPortrait appearance={appearance} height={140} />
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 18, fontWeight: 700 }}>{member.profile.displayName}</span>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>{member.profile.displayName}</span>
           {isSelf && <span style={tagStyle}>you</span>}
           {isLeader && <span style={tagStyle}>party leader</span>}
         </div>
-        <div style={{ color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.35 }}>{bio}</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.35 }}>{bio}</div>
       </div>
     </div>
   );
@@ -117,6 +94,7 @@ export function Lobby({ onStart }: Props) {
   const clientRef = useRef<SignalingClient | null>(null);
   const selfIdRef = useRef(randomId());
   const avatarSeedRef = useRef(randomId());
+  const membersRef = useRef<LobbyMember[]>([]);
 
   const [displayName, setDisplayName] = useState('you');
   const [bio, setBio] = useState('');
@@ -130,6 +108,10 @@ export function Lobby({ onStart }: Props) {
   const [members, setMembers] = useState<LobbyMember[]>([]);
   const [hostId, setHostId] = useState<string | null>(null);
   const [connectionNote, setConnectionNote] = useState('Enter the queue to sync this room.');
+  const [appearance, setAppearance] = useState<AvatarAppearance>(() => loadAppearance());
+  const [sceneEnv, setSceneEnv] = useState<SceneEnv>(() => loadSceneEnv());
+  const [charScreenOpen, setCharScreenOpen] = useState(false);
+  const [envPickerOpen, setEnvPickerOpen] = useState(false);
 
   const role = mode === 'create' ? 'host' : 'guest';
   const profile = useMemo<LobbyProfile>(
@@ -137,8 +119,9 @@ export function Lobby({ onStart }: Props) {
       displayName: displayName.trim() || 'you',
       bio: bio.trim(),
       avatarSeed: avatarSeedRef.current,
+      appearance,
     }),
-    [bio, displayName]
+    [bio, displayName, appearance]
   );
 
   const missing: string[] = [];
@@ -205,6 +188,8 @@ export function Lobby({ onStart }: Props) {
         return;
       }
       if (message.type === 'session:start') {
+        const peer = membersRef.current.find((m) => m.id !== selfId);
+        const peerAppearance = peer?.profile.appearance ?? DEFAULT_APPEARANCE;
         onStart({
           displayName: profile.displayName,
           bio: profile.bio,
@@ -213,6 +198,8 @@ export function Lobby({ onStart }: Props) {
           role,
           durationMin: message.durationMin,
           signalingUrl: signalingUrl.trim(),
+          appearance,
+          peerAppearance,
         });
       }
     });
@@ -224,11 +211,40 @@ export function Lobby({ onStart }: Props) {
   }, [joined, profile]);
 
   useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
+
+  useEffect(() => {
+    saveAppearance(appearance);
+  }, [appearance]);
+
+  useEffect(() => {
     return () => {
       clientRef.current?.close();
       clientRef.current = null;
     };
   }, []);
+
+  if (charScreenOpen) {
+    return (
+      <CharacterScreen
+        onBack={() => {
+          setCharScreenOpen(false);
+          setAppearance(loadAppearance());
+        }}
+      />
+    );
+  }
+
+  if (envPickerOpen) {
+    return (
+      <EnvironmentPicker
+        current={sceneEnv}
+        onChange={(env) => setSceneEnv(env)}
+        onClose={() => setEnvPickerOpen(false)}
+      />
+    );
+  }
 
   return (
     <div
@@ -464,6 +480,24 @@ export function Lobby({ onStart }: Props) {
                 </div>
               </div>
 
+              <div style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <h3 style={{ margin: '0 0 2px' }}>Environment</h3>
+                  <div style={{ color: 'var(--text-mute)', fontSize: 12 }}>
+                    {ENVIRONMENTS.find((e) => e.id === sceneEnv)?.label ?? sceneEnv} · only you see this
+                  </div>
+                </div>
+                <button onClick={() => setEnvPickerOpen(true)} style={changeBtnStyle}>Change</button>
+              </div>
+
+              <div style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div>
+                  <h3 style={{ margin: '0 0 2px' }}>Your character</h3>
+                  <div style={{ color: 'var(--text-mute)', fontSize: 12 }}>more skins coming with the paid plan</div>
+                </div>
+                <button onClick={() => setCharScreenOpen(true)} style={changeBtnStyle}>Customize</button>
+              </div>
+
               <div style={card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
                   <h3 style={{ margin: 0 }}>Focus rules</h3>
@@ -538,4 +572,17 @@ const textareaStyle: React.CSSProperties = {
   borderRadius: 12,
   padding: '12px 14px',
   font: 'inherit',
+};
+
+const changeBtnStyle: React.CSSProperties = {
+  padding: '7px 16px',
+  borderRadius: 999,
+  border: '1px solid var(--border)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--text-dim)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
 };

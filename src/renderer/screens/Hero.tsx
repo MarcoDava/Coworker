@@ -86,37 +86,6 @@ export function Hero({ onEnter }: Props) {
           >
             ▶  Get started
           </button>
-          <button
-            className="ghost"
-            style={{ padding: '14px 20px', fontSize: 15, borderRadius: 12 }}
-            onClick={() =>
-              document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
-            }
-          >
-            How it works
-          </button>
-        </div>
-
-        <div id="how-it-works" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginTop: 56, maxWidth: 900, width: '100%' }}>
-          <Feature
-            icon="🖥"
-            title="Live desktop share"
-            body="Your real screen is painted onto your in-world laptop via WebRTC. Your friend can glance over anytime."
-          />
-          <Feature
-            icon="👁"
-            title="Peek & call out"
-            body="Hold Alt to peek at their laptop. If they're slacking, tap Space and score points."
-          />
-          <Feature
-            icon="⚖"
-            title="Fair disputes"
-            body="Call out someone who's actually working? You'll owe them an explanation — or lose points."
-          />
-        </div>
-
-        <div style={{ marginTop: 48, color: 'var(--text-mute)', fontSize: 12 }}>
-          run <span style={kbd}>npm run signaling</span> once before your first session
         </div>
       </div>
 
@@ -243,27 +212,6 @@ function MiniDesk({ position, color }: { position: [number, number, number]; col
   );
 }
 
-function Feature({ icon, title, body }: { icon: string; title: string; body: string }) {
-  return (
-    <div
-      style={{
-        background: 'var(--panel)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        border: '1px solid var(--border)',
-        borderRadius: 14,
-        padding: 20,
-        textAlign: 'left',
-        boxShadow: 'var(--shadow)',
-      }}
-    >
-      <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>{title}</div>
-      <div style={{ color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.5 }}>{body}</div>
-    </div>
-  );
-}
-
 const pill: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -283,14 +231,4 @@ const dot: React.CSSProperties = {
   borderRadius: 999,
   background: 'var(--good)',
   boxShadow: '0 0 8px var(--good)',
-};
-
-const kbd: React.CSSProperties = {
-  fontFamily: 'JetBrains Mono, monospace',
-  fontSize: 11,
-  padding: '2px 6px',
-  border: '1px solid var(--border-strong)',
-  borderRadius: 4,
-  background: 'rgba(255,255,255,0.06)',
-  color: 'var(--text-dim)',
 };
