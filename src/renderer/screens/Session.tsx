@@ -398,10 +398,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   }
 
   useHotkeys(
-    {
-      ...DEFAULT_HOTKEYS,
-      peek: lookModifier,
-    },
+    DEFAULT_HOTKEYS,
     {
       onPeekDown: () => {
         if (menuOpen || screenMode) return;
@@ -459,7 +456,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       return `hold ${lookModifier} and drag to look around · V to switch view · M for work mode`;
     }
     if (peeking) return 'peeking - press SPACE to call out';
-    return `hold ${lookModifier} + drag to look · peek tap · V switch view · M work mode`;
+    return `hold ${lookModifier} + drag to look · Tab to peek · V switch view · M work mode`;
   }, [cameraMode, lookModifier, peeking, screenMode, store.isPaused]);
 
   const quitReady = quitText.trim().toLowerCase() === QUIT_PHRASE;
@@ -537,6 +534,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             chairColor={cfg.appearance.chairColor}
             rotationY={Math.PI}
             isTyping={selfTyping}
+            focused={screenMode}
             lookRef={freeLookRef}
           />
         )}

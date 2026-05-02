@@ -408,10 +408,19 @@ export function Library() {
         </mesh>
       ))}
 
+      {/* Back wall */}
       <RoundedBox args={[15.5, 6.2, 0.5]} radius={0.28} smoothness={4} position={[0, 3.1, -6]} receiveShadow>
         <meshToonMaterial color="#c8784a" />
       </RoundedBox>
       <RoundedBox args={[15.1, 1.85, 0.2]} radius={0.16} smoothness={4} position={[0, 1.05, -5.72]}>
+        <meshToonMaterial color="#a85c30" />
+      </RoundedBox>
+
+      {/* Front wall */}
+      <RoundedBox args={[15.5, 6.2, 0.5]} radius={0.28} smoothness={4} position={[0, 3.1, 5.55]} receiveShadow>
+        <meshToonMaterial color="#c8784a" />
+      </RoundedBox>
+      <RoundedBox args={[15.1, 1.85, 0.2]} radius={0.16} smoothness={4} position={[0, 1.05, 5.38]}>
         <meshToonMaterial color="#a85c30" />
       </RoundedBox>
 

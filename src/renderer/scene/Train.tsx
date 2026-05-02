@@ -1,36 +1,26 @@
-import { Environment, Float, RoundedBox } from '@react-three/drei';
+import { Environment, Float, RoundedBox, Text } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { NPC_SCALE } from './CharacterParts';
 
 // ─── Scrolling city backdrop ─────────────────────────────────────────────────
 
 function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
-  const STRIP = W * 2.5;
+  const STRIP = W * 2.8;
   const Z = -D * 0.43;
   const groupRef = useRef<THREE.Group>(null);
 
   const buildings = useMemo(() => {
-    const count = 22;
+    const count = Math.max(50, Math.floor(W * 7.5));
     return Array.from({ length: count }, (_, i) => {
-      const bw = 0.10 + ((i * 17 + 3) % 5) * 0.05;
-      const bh = 0.28 + ((i * 29 + 7) % 10) * 0.062;
+      const bw = 0.18 + ((i * 17 + 3) % 7) * 0.038;
+      const bh = 0.26 + ((i * 29 + 7) % 11) * 0.072;
       const x = (i / count) * STRIP;
       const yCenter = -H / 2 + bh / 2;
-      const wins: { wx: number; wy: number; color: string }[] = [];
-      const cols = Math.max(1, Math.floor(bw / 0.034));
-      const rows = Math.max(1, Math.floor(bh / 0.042));
-      for (let c = 0; c < cols; c++) {
-        for (let r = 0; r < rows; r++) {
-          if (((c * 3 + r * 5 + i * 7) % 10) <= 2) continue;
-          wins.push({
-            wx: -bw / 2 + (c + 0.5) * (bw / cols),
-            wy: -bh / 2 + (r + 0.5) * (bh / rows),
-            color: (c + r + i) % 3 === 0 ? '#ffcc66' : (c + r + i) % 3 === 1 ? '#ffaa44' : '#88bbff',
-          });
-        }
-      }
-      return { x, bw, bh, yCenter, wins };
+      const roof = i % 4 === 0 ? 'cap' : 'flat';
+      const glowRows = Math.max(3, Math.floor(bh / 0.12));
+      return { x, bw, bh, yCenter, roof, glowRows };
     });
   }, [W, H, STRIP]);
 
@@ -43,17 +33,27 @@ function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
 
   return (
     <group ref={groupRef}>
+      <mesh position={[0, -H * 0.30, Z - 0.003]}>
+        <planeGeometry args={[STRIP * 2.2, 0.12]} />
+        <meshBasicMaterial color="#101827" transparent opacity={0.78} />
+      </mesh>
       {([0, STRIP] as number[]).map((offset) =>
         buildings.map((b, i) => (
           <group key={`${offset}-${i}`} position={[b.x + offset - W * 0.8, b.yCenter, Z]}>
             <mesh>
               <boxGeometry args={[b.bw, b.bh, 0.001]} />
-              <meshBasicMaterial color="#1c2030" />
+              <meshBasicMaterial color={i % 3 === 0 ? '#172033' : i % 3 === 1 ? '#1d2638' : '#111927'} />
             </mesh>
-            {b.wins.map((w, j) => (
-              <mesh key={j} position={[w.wx, w.wy, 0.002]}>
-                <planeGeometry args={[0.018, 0.014]} />
-                <meshBasicMaterial color={w.color} />
+            {b.roof === 'cap' && (
+              <mesh position={[0, b.bh / 2 + 0.025, 0.001]}>
+                <boxGeometry args={[b.bw * 1.12, 0.05, 0.001]} />
+                <meshBasicMaterial color="#242c3c" />
+              </mesh>
+            )}
+            {Array.from({ length: b.glowRows }, (_, j) => (
+              <mesh key={j} position={[0, -b.bh / 2 + 0.10 + j * 0.15, 0.002]}>
+                <planeGeometry args={[b.bw * 0.62, 0.018]} />
+                <meshBasicMaterial color={j % 2 === 0 ? '#f1b35c' : '#83aee8'} transparent opacity={0.58} />
               </mesh>
             ))}
           </group>
@@ -65,18 +65,24 @@ function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
 
 // ─── Side window ─────────────────────────────────────────────────────────────
 
-function TrainWindow({ position, rotation }: {
+function TrainWindow({ position, rotation, width = 1.1, height = 0.88, struts = 0, showMoon = false }: {
   position: [number, number, number];
   rotation?: [number, number, number];
+  width?: number;
+  height?: number;
+  struts?: number;
+  showMoon?: boolean;
 }) {
-  const W = 1.1; const H = 0.88; const F = 0.12; const D = 0.16;
+  const W = width; const H = height; const F = 0.12; const D = 0.16;
+  const WALL_LAYER = 0.95;
+  const WALL_LAYER_Z = -D * 0.24;
 
   const stars = useMemo(() =>
-    Array.from({ length: 20 }, (_, i) => ({
-      x: -0.44 + ((i * 41 + 3) % 100) / 114,
-      y: 0.02 + ((i * 31 + 7) % 100) / 220,
+    Array.from({ length: Math.min(28, Math.max(10, Math.floor(W * 2.2))) }, (_, i) => ({
+      x: -W * 0.43 + (((i * 41 + 3) % 100) / 100) * W * 0.86,
+      y: -H * 0.10 + (((i * 31 + 7) % 100) / 100) * H * 0.48,
       r: 0.006 + ((i * 13) % 3) * 0.003,
-    })), []);
+    })), [W, H]);
 
   return (
     <group position={position} rotation={rotation}>
@@ -90,15 +96,39 @@ function TrainWindow({ position, rotation }: {
           <meshBasicMaterial color="#d0dcff" />
         </mesh>
       ))}
-      <mesh position={[0.26, 0.20, -D * 0.48]}>
-        <circleGeometry args={[0.08, 16]} />
-        <meshBasicMaterial color="#dde8b0" />
-      </mesh>
-      <mesh position={[-0.18, -0.28, -D * 0.46]}>
-        <circleGeometry args={[0.25, 20]} />
-        <meshBasicMaterial color="#0a0f08" />
-      </mesh>
+      {showMoon && (
+        <>
+          <mesh position={[W * 0.24, H * 0.23, -D * 0.48]}>
+            <circleGeometry args={[0.08, 12]} />
+            <meshBasicMaterial color="#dde8b0" />
+          </mesh>
+          <mesh position={[-W * 0.16, -H * 0.32, -D * 0.46]}>
+            <circleGeometry args={[0.25, 12]} />
+            <meshBasicMaterial color="#0a0f08" />
+          </mesh>
+        </>
+      )}
       <ScrollingCityStrip D={D} W={W} H={H} />
+      {([-1, 1] as number[]).map((side) => (
+        <mesh key={`side-${side}`} position={[side * (W / 2 + WALL_LAYER / 2), 0, WALL_LAYER_Z]}>
+          <planeGeometry args={[WALL_LAYER, H + F * 3]} />
+          <meshBasicMaterial color="#6a3a1a" />
+        </mesh>
+      ))}
+      {([-1, 1] as number[]).map((side) => (
+        <mesh key={`rail-${side}`} position={[0, side * (H / 2 + WALL_LAYER / 2), WALL_LAYER_Z]}>
+          <planeGeometry args={[W + WALL_LAYER * 2, WALL_LAYER]} />
+          <meshBasicMaterial color="#6a3a1a" />
+        </mesh>
+      ))}
+      {Array.from({ length: struts }, (_, i) => {
+        const x = -W / 2 + ((i + 1) * W) / (struts + 1);
+        return (
+          <RoundedBox key={i} args={[F * 0.52, H + F * 0.55, D * 1.05]} radius={0.025} smoothness={3} position={[x, 0, 0.012]}>
+            <meshToonMaterial color="#3a2010" />
+          </RoundedBox>
+        );
+      })}
       <RoundedBox args={[W + F * 2, F, D]} radius={0.03} smoothness={3} position={[0, H / 2 + F / 2, 0]}>
         <meshToonMaterial color="#3a2010" />
       </RoundedBox>
@@ -125,10 +155,10 @@ function GlobeLamp({ position }: { position: [number, number, number] }) {
         <meshToonMaterial color="#5a3a20" />
       </mesh>
       <mesh castShadow>
-        <sphereGeometry args={[0.11, 14, 14]} />
+        <sphereGeometry args={[0.11, 10, 10]} />
         <meshToonMaterial color="#ffe4a8" emissive="#ffb844" emissiveIntensity={0.7} />
       </mesh>
-      <pointLight intensity={1.0} distance={5} color="#ffb844" />
+      <pointLight intensity={0.55} distance={3.2} color="#ffb844" />
     </group>
   );
 }
@@ -155,6 +185,39 @@ function BenchSeat({ position, rotation }: {
 }
 
 // ─── Drink shelf (wall-mounted behind bar) ────────────────────────────────────
+
+function BoothSet({ z }: { z: number }) {
+  return (
+    <group>
+      <BenchSeat position={[4.04, 0.14, z-1.2]} rotation={[0, 0, 0]} />
+      <BenchSeat position={[4.04, 0.14, z+1.2]} rotation={[0, Math.PI, 0]} />
+      <RoundedBox args={[1.6, 0.12, 1.12]} radius={0.08} smoothness={3}
+        position={[4.04, 0.72, z]} castShadow receiveShadow>
+        <meshToonMaterial color="#3a2210" />
+      </RoundedBox>
+      {([-0.38, 0.38] as number[]).map((x) =>
+        ([-0.38, 0.38] as number[]).map((dz) => (
+          <RoundedBox key={`${x}-${dz}`} args={[0.10, 0.62, 0.10]} radius={0.04} smoothness={2}
+            position={[3.8 + x, 0.33, z + dz]}>
+            <meshToonMaterial color="#2a1808" />
+          </RoundedBox>
+        ))
+      )}
+      {([-0.28, 0.28] as number[]).map((dz, i) => (
+        <group key={dz} position={[4.04, 0.81, z + dz]}>
+          <mesh>
+            <cylinderGeometry args={[0.075, 0.075, 0.012, 12]} />
+            <meshToonMaterial color={i === 0 ? '#f1d69b' : '#d8e8f0'} />
+          </mesh>
+          <mesh position={[0.12, 0.035, 0.03]}>
+            <cylinderGeometry args={[0.028, 0.024, 0.07, 8]} />
+            <meshToonMaterial color="#b8eef2" transparent opacity={0.52} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
 
 function DrinkShelf({ position }: { position: [number, number, number] }) {
   const lowerBottles = useMemo(() =>
@@ -225,15 +288,15 @@ function LBar() {
   const RW = 0.65;   // return arm width (along X)
   const RL = 1.65;   // return arm extra extension toward camera
 
-  // Left edge of main arm
-  const leftEdge = MX - MW / 2; // −3.1
+  // Rotated 180 degrees from the original layout.
+  const rightEdge = MX + MW / 2;
 
-  // Return arm: extends from back of main arm forward (+Z), flush with main arm back face
-  const retZ = MZ + RL / 2;  // center of return arm Z
-  const retX = leftEdge + RW / 2; // −2.775
+  // Return arm: now hooks on the opposite side and extends toward the rear door.
+  const retZ = MZ - RL / 2;
+  const retX = rightEdge - RW / 2;
 
-  // Bar stool z — in front of main arm front face
-  const stoolZ = MZ + D / 2 + 0.55; // −8.125
+  // Bar stool z - customer side after the 180 degree rotation.
+  const stoolZ = MZ - D / 2 - 0.55;
 
   return (
     <group>
@@ -259,7 +322,7 @@ function LBar() {
 
       {/* ── Pendant lights above bar ── */}
       {([-1.5, -0.25, 1.0] as number[]).map((x, i) => (
-        <group key={i} position={[x, 4.2, MZ - 0.05]}>
+        <group key={i} position={[x, 4.2, MZ + 0.05]}>
           <mesh>
             <cylinderGeometry args={[0.006, 0.006, 2.85, 5]} />
             <meshToonMaterial color="#3a2010" />
@@ -269,13 +332,13 @@ function LBar() {
             <coneGeometry args={[0.20, 0.26, 8, 1, true]} />
             <meshToonMaterial color="#b06820" emissive="#cc5500" emissiveIntensity={0.18} />
           </mesh>
-          <pointLight position={[0, -1.7, 0]} intensity={0.65} distance={4.2} color="#ffcc66" />
+          <pointLight position={[0, -1.7, 0]} intensity={0.36} distance={3.0} color="#ffcc66" />
         </group>
       ))}
 
       {/* ── Bar stools (customer side) ── */}
-      {([-0.4, 0.4, 1.2] as number[]).map((x, i) => (
-        <group key={i} position={[x, 0, stoolZ]}>
+      {([-0.5, -1.5, -2.5] as number[]).map((x, i) => (
+        <group key={i} position={[x, 0, -8.4]}>
           <mesh position={[0, 0.62, 0]}>
             <cylinderGeometry args={[0.18, 0.16, 0.06, 10]} />
             <meshToonMaterial color="#28aacc" />
@@ -296,64 +359,118 @@ function LBar() {
 
 // ─── Bartender bot ────────────────────────────────────────────────────────────
 
-function BartenderBot({ position }: { position: [number, number, number] }) {
-  const leftArmRef = useRef<THREE.Mesh>(null);
+function BartenderNPC({ position, rotation = [0, 0, 0] }: {
+  position: [number, number, number];
+  rotation?: [number, number, number];
+}) {
+  const leftArmRef = useRef<THREE.Group>(null);
+  const rightArmRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null);
+  const towelRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
     const cleaning = Math.sin(t * 0.30) > 0.60;
     if (leftArmRef.current) {
-      const targetZ = cleaning ? 0.26 + Math.sin(t * 2.8) * 0.14 : 0.06;
-      const targetRX = cleaning ? -0.48 : 0.0;
-      leftArmRef.current.position.z += (targetZ - leftArmRef.current.position.z) * 0.07;
-      leftArmRef.current.rotation.x += (targetRX - leftArmRef.current.rotation.x) * 0.07;
+      const targetZ = cleaning ? 0.26 + Math.sin(t * 2.8) * 0.16 : 0.08;
+      leftArmRef.current.position.z += (targetZ - leftArmRef.current.position.z) * 0.08;
+      leftArmRef.current.rotation.x = THREE.MathUtils.lerp(leftArmRef.current.rotation.x, cleaning ? 0.50 : 0.08, 0.08);
+      leftArmRef.current.rotation.z = THREE.MathUtils.lerp(leftArmRef.current.rotation.z, cleaning ? 0.48 : 0.30, 0.08);
+    }
+    if (rightArmRef.current) {
+      rightArmRef.current.rotation.z = THREE.MathUtils.lerp(rightArmRef.current.rotation.z, -0.34 + Math.sin(t * 0.9) * 0.04, 0.08);
+    }
+    if (towelRef.current) {
+      towelRef.current.visible = cleaning;
     }
     if (bodyRef.current) {
-      bodyRef.current.rotation.z = Math.sin(t * 0.9) * 0.03;
+      bodyRef.current.rotation.z = Math.sin(t * 0.9) * 0.025;
     }
   });
 
   return (
-    <group position={position}>
+    <group position={position} rotation={rotation} scale={NPC_SCALE}>
       <group ref={bodyRef}>
-        {/* Body */}
-        <RoundedBox args={[0.30, 0.42, 0.22]} radius={0.09} smoothness={3} position={[0, 0.71, 0]} castShadow>
-          <meshToonMaterial color="#3a5a8a" />
+        <RoundedBox args={[0.38, 0.50, 0.26]} radius={0.12} smoothness={4} position={[0, 0.72, 0]} castShadow>
+          <meshToonMaterial color="#4c6a72" />
         </RoundedBox>
-        {/* Apron */}
-        <RoundedBox args={[0.24, 0.36, 0.04]} radius={0.04} smoothness={3} position={[0, 0.63, 0.12]}>
-          <meshToonMaterial color="#e8e0d0" />
+        <RoundedBox args={[0.30, 0.42, 0.05]} radius={0.05} smoothness={3} position={[0, 0.67, 0.145]}>
+          <meshToonMaterial color="#f2dfc2" />
         </RoundedBox>
-        {/* Head */}
-        <RoundedBox args={[0.26, 0.22, 0.24]} radius={0.09} smoothness={3} position={[0, 1.06, 0]} castShadow>
-          <meshToonMaterial color="#5080b8" />
+        <RoundedBox args={[0.08, 0.22, 0.04]} radius={0.025} smoothness={3} position={[0, 0.73, 0.175]}>
+          <meshToonMaterial color="#5b2c1a" />
         </RoundedBox>
-        {/* Face screen */}
-        <mesh position={[0, 1.06, 0.13]}>
-          <planeGeometry args={[0.15, 0.08]} />
-          <meshBasicMaterial color="#1a2a4a" />
+        <mesh position={[0, 1.09, 0.01]} castShadow>
+          <sphereGeometry args={[0.18, 18, 18]} />
+          <meshToonMaterial color="#e4b78e" />
         </mesh>
-        <mesh position={[-0.033, 1.065, 0.14]}>
-          <circleGeometry args={[0.012, 8]} />
-          <meshBasicMaterial color="#66ccff" />
+        <mesh position={[0, 1.225, -0.02]} scale={[1.0, 0.38, 0.86]} castShadow>
+          <sphereGeometry args={[0.19, 16, 16]} />
+          <meshToonMaterial color="#352016" />
         </mesh>
-        <mesh position={[0.033, 1.065, 0.14]}>
-          <circleGeometry args={[0.012, 8]} />
-          <meshBasicMaterial color="#66ccff" />
+        <RoundedBox args={[0.10, 0.12, 0.10]} radius={0.05} smoothness={3} position={[-0.17, 1.13, 0.00]} castShadow>
+          <meshToonMaterial color="#352016" />
+        </RoundedBox>
+        <RoundedBox args={[0.10, 0.12, 0.10]} radius={0.05} smoothness={3} position={[0.17, 1.13, 0.00]} castShadow>
+          <meshToonMaterial color="#352016" />
+        </RoundedBox>
+        {([-0.055, 0.055] as number[]).map((x) => (
+          <mesh key={x} position={[x, 1.095, 0.175]}>
+            <sphereGeometry args={[0.016, 8, 8]} />
+            <meshBasicMaterial color="#2a1a14" />
+          </mesh>
+        ))}
+        <RoundedBox args={[0.14, 0.032, 0.035]} radius={0.014} smoothness={3} position={[0, 1.045, 0.18]}>
+          <meshBasicMaterial color="#5b2c1a" />
+        </RoundedBox>
+        <mesh position={[0, 0.98, 0.17]} rotation={[0, 0, Math.PI]}>
+          <torusGeometry args={[0.052, 0.010, 6, 14, Math.PI]} />
+          <meshBasicMaterial color="#a85c48" />
         </mesh>
-        {/* Right arm (static) */}
-        <mesh position={[0.20, 0.70, 0.0]} rotation={[0, 0, -0.35]} castShadow>
-          <capsuleGeometry args={[0.058, 0.20, 4, 8]} />
-          <meshToonMaterial color="#2a4878" />
-        </mesh>
-        {/* Left arm (cleaning animation) */}
-        <mesh ref={leftArmRef} position={[-0.20, 0.74, 0.06]} rotation={[-0.1, 0, 0.35]} castShadow>
-          <capsuleGeometry args={[0.058, 0.20, 4, 8]} />
-          <meshToonMaterial color="#2a4878" />
-        </mesh>
-        {/* Ambient glow from face */}
-        <pointLight position={[0, 1.10, 0.22]} intensity={0.20} distance={1.8} color="#66ccff" />
+        <group ref={rightArmRef} position={[0.19, 0.76, 0.0]} rotation={[0, Math.PI, -0.26]}>
+          <mesh castShadow>
+            <capsuleGeometry args={[0.060, 0.24, 4, 8]} />
+            <meshToonMaterial color="#4c6a72" />
+          </mesh>
+          <mesh position={[0.02, -0.15, 0.08]} castShadow>
+            <sphereGeometry args={[0.060, 10, 10]} />
+            <meshToonMaterial color="#e4b78e" />
+          </mesh>
+        </group>
+        <group ref={leftArmRef} position={[-0.19, 0.76, 0.0]} rotation={[0, Math.PI, 0.26]}>
+          <mesh castShadow>
+            <capsuleGeometry args={[0.060, 0.24, 4, 8]} />
+            <meshToonMaterial color="#4c6a72" />
+          </mesh>
+          <mesh position={[-0.01, -0.15, 0.10]} castShadow>
+            <sphereGeometry args={[0.060, 10, 10]} />
+            <meshToonMaterial color="#e4b78e" />
+          </mesh>
+          <mesh ref={towelRef} position={[-0.03, -0.20, 0.17]} rotation={[0.3, 0, -0.2]}>
+            <planeGeometry args={[0.20, 0.13]} />
+            <meshBasicMaterial color="#f7f0df" transparent opacity={0.88} side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+        <group position={[-0.33, 1.12, 0.30]} rotation={[0.08, 0, -0.12]}>
+          <mesh>
+            <cylinderGeometry args={[0.055, 0.045, 0.18, 12, 1, true]} />
+            <meshToonMaterial color="#b8eef2" transparent opacity={0.42} />
+          </mesh>
+          <mesh position={[0, -0.10, 0]}>
+            <cylinderGeometry args={[0.035, 0.035, 0.018, 12]} />
+            <meshToonMaterial color="#f3c36d" />
+          </mesh>
+        </group>
+        <group position={[0.35, 1.10, 0.24]}>
+          <mesh>
+            <cylinderGeometry args={[0.032, 0.040, 0.22, 10]} />
+            <meshToonMaterial color="#5b2230" />
+          </mesh>
+          <mesh position={[0, 0.14, 0]}>
+            <cylinderGeometry args={[0.016, 0.024, 0.08, 8]} />
+            <meshToonMaterial color="#d8c890" />
+          </mesh>
+        </group>
       </group>
     </group>
   );
@@ -361,37 +478,123 @@ function BartenderBot({ position }: { position: [number, number, number] }) {
 
 // ─── Seated NPC passenger ─────────────────────────────────────────────────────
 
-function TrainNPC({ position, rotation = [0, 0, 0] as [number, number, number], bodyColor = '#4a70a8' }: {
+type PassengerKind = 'reader' | 'sleepy' | 'patron';
+
+function TrainNPC({
+  position,
+  rotation = [0, 0, 0] as [number, number, number],
+  bodyColor = '#4a70a8',
+  hairColor = '#2a1808',
+  skinColor = '#f0c8a0',
+  kind = 'reader',
+}: {
   position: [number, number, number];
   rotation?: [number, number, number];
   bodyColor?: string;
+  hairColor?: string;
+  skinColor?: string;
+  kind?: PassengerKind;
 }) {
+  const headRef = useRef<THREE.Group>(null);
+  const propRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (headRef.current) {
+      const nod = kind === 'sleepy' ? Math.sin(t * 0.55) * 0.10 - 0.08 : Math.sin(t * 0.75) * 0.025;
+      headRef.current.rotation.x = nod;
+      headRef.current.rotation.z = kind === 'sleepy' ? Math.sin(t * 0.45) * 0.07 : 0;
+    }
+    if (propRef.current && kind === 'reader') {
+      propRef.current.rotation.z = Math.sin(t * 0.9) * 0.025;
+    }
+  });
+
   return (
-    <group position={position} rotation={rotation}>
-      <RoundedBox args={[0.36, 0.46, 0.28]} radius={0.12} smoothness={3} position={[0, 0.23, 0]} castShadow>
+    <group position={position} rotation={rotation} scale={NPC_SCALE}>
+      <RoundedBox args={[0.38, 0.46, 0.30]} radius={0.13} smoothness={4} position={[0, 0.24, 0]} castShadow>
         <meshToonMaterial color={bodyColor} />
       </RoundedBox>
-      <mesh position={[0, 0.64, 0.02]} castShadow>
-        <sphereGeometry args={[0.185, 12, 12]} />
-        <meshToonMaterial color="#f0c8a0" />
-      </mesh>
-      <RoundedBox args={[0.32, 0.09, 0.30]} radius={0.06} smoothness={3} position={[0, 0.79, -0.01]} castShadow>
-        <meshToonMaterial color="#2a1808" />
+      <RoundedBox args={[0.22, 0.12, 0.035]} radius={0.018} smoothness={3} position={[0, 0.36, 0.16]}>
+        <meshToonMaterial color={kind === 'patron' ? '#f0d888' : '#fff0d0'} />
       </RoundedBox>
-      <RoundedBox args={[0.08, 0.15, 0.28]} radius={0.05} smoothness={3} position={[-0.19, 0.72, -0.01]} castShadow>
-        <meshToonMaterial color="#2a1808" />
-      </RoundedBox>
-      <RoundedBox args={[0.08, 0.15, 0.28]} radius={0.05} smoothness={3} position={[0.19, 0.72, -0.01]} castShadow>
-        <meshToonMaterial color="#2a1808" />
-      </RoundedBox>
-      <mesh position={[-0.26, 0.16, 0.05]} rotation={[0.3, 0, 0.2]} castShadow>
-        <capsuleGeometry args={[0.054, 0.16, 4, 6]} />
+      <group ref={headRef} position={[0, 0.63, 0.02]}>
+        <mesh castShadow>
+          <sphereGeometry args={[0.185, 16, 16]} />
+          <meshToonMaterial color={skinColor} />
+        </mesh>
+        <mesh position={[0, 0.13, -0.02]} scale={[1.0, 0.38, 0.82]} castShadow>
+          <sphereGeometry args={[0.19, 14, 14]} />
+          <meshToonMaterial color={hairColor} />
+        </mesh>
+        <RoundedBox args={[0.13, 0.10, 0.12]} radius={0.05} smoothness={3} position={[-0.15, 0.055, 0]} castShadow>
+          <meshToonMaterial color={hairColor} />
+        </RoundedBox>
+        <RoundedBox args={[0.13, 0.10, 0.12]} radius={0.05} smoothness={3} position={[0.15, 0.055, 0]} castShadow>
+          <meshToonMaterial color={hairColor} />
+        </RoundedBox>
+        {kind === 'sleepy' ? (
+          <>
+            <mesh position={[-0.06, 0.00, 0.17]} rotation={[0, 0, 0.18]}>
+              <boxGeometry args={[0.052, 0.008, 0.006]} />
+              <meshBasicMaterial color="#342018" />
+            </mesh>
+            <mesh position={[0.06, 0.00, 0.17]} rotation={[0, 0, -0.18]}>
+              <boxGeometry args={[0.052, 0.008, 0.006]} />
+              <meshBasicMaterial color="#342018" />
+            </mesh>
+          </>
+        ) : (
+          ([-0.06, 0.06] as number[]).map((x) => (
+            <mesh key={x} position={[x, 0.00, 0.17]}>
+              <sphereGeometry args={[0.014, 8, 8]} />
+              <meshBasicMaterial color="#281812" />
+            </mesh>
+          ))
+        )}
+        <mesh position={[0, -0.055, 0.175]} rotation={[0, 0, Math.PI]}>
+          <torusGeometry args={[0.040, 0.008, 5, 12, Math.PI]} />
+          <meshBasicMaterial color="#b06b58" />
+        </mesh>
+      </group>
+      <mesh position={[-0.21, 0.30, 0.0]} rotation={[0, Math.PI, 0.22]} castShadow>
+        <capsuleGeometry args={[0.055, 0.18, 4, 8]} />
         <meshToonMaterial color={bodyColor} />
       </mesh>
-      <mesh position={[0.26, 0.16, 0.05]} rotation={[0.3, 0, -0.2]} castShadow>
-        <capsuleGeometry args={[0.054, 0.16, 4, 6]} />
+      <mesh position={[0.21, 0.30, 0.0]} rotation={[0, Math.PI, -0.22]} castShadow>
+        <capsuleGeometry args={[0.055, 0.18, 4, 8]} />
         <meshToonMaterial color={bodyColor} />
       </mesh>
+      {kind === 'reader' && (
+        <group ref={propRef} position={[0, 0.35, 0.23]} rotation={[-0.28, 0, 0]}>
+          <RoundedBox args={[0.30, 0.19, 0.035]} radius={0.018} smoothness={3}>
+            <meshToonMaterial color="#d94f3d" />
+          </RoundedBox>
+          <mesh position={[0, 0, 0.022]}>
+            <boxGeometry args={[0.012, 0.18, 0.008]} />
+            <meshBasicMaterial color="#f6dca6" />
+          </mesh>
+        </group>
+      )}
+      {kind === 'sleepy' && (
+        <Float speed={0.65} floatIntensity={0.06} rotationIntensity={0}>
+          <group position={[0.22, 0.94, 0.12]}>
+            <Text fontSize={0.13} color="#aaccff" anchorX="center" anchorY="middle">Z</Text>
+          </group>
+        </Float>
+      )}
+      {kind === 'patron' && (
+        <group position={[0.17, 0.39, 0.24]}>
+          <mesh>
+            <cylinderGeometry args={[0.045, 0.040, 0.10, 10]} />
+            <meshToonMaterial color="#b8eef2" transparent opacity={0.48} />
+          </mesh>
+          <mesh position={[0, -0.055, 0]}>
+            <cylinderGeometry args={[0.030, 0.030, 0.018, 10]} />
+            <meshToonMaterial color="#f0bd62" />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -442,36 +645,133 @@ function SlidingDoor({ position, conductorZ, triggerZ, flip = false }: {
 
 // ─── Conductor ────────────────────────────────────────────────────────────────
 
-function ConductorBot({ botRef }: { botRef: React.RefObject<THREE.Group> }) {
+const CONDUCTOR_WALK_FREQ = 5.5;
+
+function ConductorNPC({ conductorRef }: { conductorRef: React.RefObject<THREE.Group> }) {
+  const lanternRef  = useRef<THREE.Group>(null);
+  const rightArmRef = useRef<THREE.Group>(null);
+  const leftArmRef  = useRef<THREE.Group>(null);
+  const leftLegRef  = useRef<THREE.Group>(null);
+  const rightLegRef = useRef<THREE.Group>(null);
+  const bodyRef     = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    const stride = Math.sin(t * CONDUCTOR_WALK_FREQ);
+
+    if (leftLegRef.current)  leftLegRef.current.rotation.x  =  stride * 0.44;
+    if (rightLegRef.current) rightLegRef.current.rotation.x = -stride * 0.44;
+
+    if (leftArmRef.current) {
+      leftArmRef.current.rotation.x = THREE.MathUtils.lerp(
+        leftArmRef.current.rotation.x, stride * 0.30, 0.18,
+      );
+    }
+    if (rightArmRef.current) {
+      rightArmRef.current.rotation.x = THREE.MathUtils.lerp(
+        rightArmRef.current.rotation.x, -stride * 0.24, 0.18,
+      );
+    }
+
+    if (bodyRef.current) {
+      bodyRef.current.rotation.z = stride * 0.022;
+    }
+
+    if (lanternRef.current) {
+      lanternRef.current.rotation.z = stride * 0.20;
+      lanternRef.current.position.y = 0.55 + Math.abs(stride) * 0.018;
+    }
+  });
+
   return (
-    <group ref={botRef} position={[2.2, 0, 0]}>
-      <RoundedBox args={[0.26, 0.48, 0.17]} radius={0.07} smoothness={3} position={[0, 0.62, 0]} castShadow>
-        <meshToonMaterial color="#221408" />
-      </RoundedBox>
-      <RoundedBox args={[0.07, 0.28, 0.05]} radius={0.03} smoothness={3} position={[-0.07, 0.71, 0.09]} rotation={[0, 0, 0.2]}>
-        <meshToonMaterial color="#1a0e06" />
-      </RoundedBox>
-      <RoundedBox args={[0.07, 0.28, 0.05]} radius={0.03} smoothness={3} position={[0.07, 0.71, 0.09]} rotation={[0, 0, -0.2]}>
-        <meshToonMaterial color="#1a0e06" />
-      </RoundedBox>
-      <mesh position={[0, 1.10, 0]} castShadow>
-        <sphereGeometry args={[0.15, 12, 12]} />
-        <meshToonMaterial color="#c8a878" />
-      </mesh>
-      <RoundedBox args={[0.26, 0.05, 0.26]} radius={0.02} smoothness={3} position={[0, 1.22, 0]}>
-        <meshToonMaterial color="#1a0e06" />
-      </RoundedBox>
-      <RoundedBox args={[0.18, 0.17, 0.18]} radius={0.04} smoothness={3} position={[0, 1.30, 0]}>
-        <meshToonMaterial color="#1a0e06" />
-      </RoundedBox>
-      <mesh position={[-0.08, 0.22, 0]} castShadow>
-        <capsuleGeometry args={[0.05, 0.26, 6, 8]} />
-        <meshToonMaterial color="#181006" />
-      </mesh>
-      <mesh position={[0.08, 0.22, 0]} castShadow>
-        <capsuleGeometry args={[0.05, 0.26, 6, 8]} />
-        <meshToonMaterial color="#181006" />
-      </mesh>
+    <group ref={conductorRef} position={[2.2, 0, 0]} scale={NPC_SCALE}>
+      <group ref={bodyRef}>
+        <RoundedBox args={[0.34, 0.52, 0.22]} radius={0.10} smoothness={4} position={[0, 0.62, 0]} castShadow>
+          <meshToonMaterial color="#243044" />
+        </RoundedBox>
+        <RoundedBox args={[0.22, 0.44, 0.04]} radius={0.035} smoothness={3} position={[0, 0.60, 0.125]}>
+          <meshToonMaterial color="#f3d18a" />
+        </RoundedBox>
+        <RoundedBox args={[0.08, 0.40, 0.045]} radius={0.02} smoothness={3} position={[0, 0.62, 0.155]}>
+          <meshToonMaterial color="#7e2d28" />
+        </RoundedBox>
+        <mesh position={[0, 1.08, 0.01]} castShadow>
+          <sphereGeometry args={[0.17, 16, 16]} />
+          <meshToonMaterial color="#d8aa80" />
+        </mesh>
+        <mesh position={[0, 1.20, -0.015]} scale={[1.05, 0.35, 0.82]} castShadow>
+          <sphereGeometry args={[0.18, 14, 14]} />
+          <meshToonMaterial color="#2b1a12" />
+        </mesh>
+        <RoundedBox args={[0.34, 0.065, 0.32]} radius={0.025} smoothness={3} position={[0, 1.22, 0.01]}>
+          <meshToonMaterial color="#192033" />
+        </RoundedBox>
+        <RoundedBox args={[0.24, 0.15, 0.21]} radius={0.055} smoothness={3} position={[0, 1.30, -0.005]}>
+          <meshToonMaterial color="#243044" />
+        </RoundedBox>
+        <RoundedBox args={[0.16, 0.035, 0.035]} radius={0.012} smoothness={3} position={[0, 1.285, 0.13]}>
+          <meshToonMaterial color="#f3d18a" />
+        </RoundedBox>
+        {([-0.055, 0.055] as number[]).map((x) => (
+          <mesh key={x} position={[x, 1.075, 0.165]}>
+            <sphereGeometry args={[0.014, 8, 8]} />
+            <meshBasicMaterial color="#21140e" />
+          </mesh>
+        ))}
+        <RoundedBox args={[0.11, 0.026, 0.026]} radius={0.012} smoothness={3} position={[0, 1.025, 0.17]}>
+          <meshBasicMaterial color="#704028" />
+        </RoundedBox>
+        <group ref={leftArmRef} position={[-0.19, 0.68, 0.0]} rotation={[0, Math.PI, 0.32]}>
+          <mesh castShadow>
+            <capsuleGeometry args={[0.055, 0.24, 4, 8]} />
+            <meshToonMaterial color="#243044" />
+          </mesh>
+          <mesh position={[-0.02, -0.16, 0.04]} castShadow>
+            <sphereGeometry args={[0.052, 10, 10]} />
+            <meshToonMaterial color="#d8aa80" />
+          </mesh>
+          <RoundedBox args={[0.13, 0.055, 0.035]} radius={0.016} smoothness={3} position={[-0.08, -0.21, 0.08]} rotation={[0, 0, -0.25]}>
+            <meshToonMaterial color="#d9c3a0" />
+          </RoundedBox>
+        </group>
+        <group ref={rightArmRef} position={[0.19, 0.68, 0.0]} rotation={[0, Math.PI, -0.28]}>
+          <mesh castShadow>
+            <capsuleGeometry args={[0.055, 0.24, 4, 8]} />
+            <meshToonMaterial color="#243044" />
+          </mesh>
+          <mesh position={[0.02, -0.16, 0.04]} castShadow>
+            <sphereGeometry args={[0.052, 10, 10]} />
+            <meshToonMaterial color="#d8aa80" />
+          </mesh>
+        </group>
+        <group ref={lanternRef} position={[0.33, 0.55, 0.14]}>
+          <mesh position={[0, 0.12, 0]}>
+            <torusGeometry args={[0.055, 0.008, 5, 12, Math.PI]} />
+            <meshToonMaterial color="#4a3420" />
+          </mesh>
+          <RoundedBox args={[0.11, 0.16, 0.09]} radius={0.025} smoothness={3}>
+            <meshToonMaterial color="#4a3420" />
+          </RoundedBox>
+          <mesh position={[0, 0.00, 0.055]}>
+            <planeGeometry args={[0.060, 0.075]} />
+            <meshBasicMaterial color="#ffd37a" transparent opacity={0.80} />
+          </mesh>
+          <pointLight position={[0, 0, 0.08]} intensity={0.35} distance={1.7} color="#ffbd5a" />
+        </group>
+      </group>
+      {/* Legs — pivot from hip so rotation swings foot forward/back */}
+      <group ref={leftLegRef} position={[-0.10, 0.41, 0]}>
+        <mesh position={[0, -0.205, 0]} castShadow>
+          <capsuleGeometry args={[0.052, 0.27, 6, 8]} />
+          <meshToonMaterial color="#171a24" />
+        </mesh>
+      </group>
+      <group ref={rightLegRef} position={[0.10, 0.41, 0]}>
+        <mesh position={[0, -0.205, 0]} castShadow>
+          <capsuleGeometry args={[0.052, 0.27, 6, 8]} />
+          <meshToonMaterial color="#171a24" />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -491,7 +791,12 @@ export function Train() {
   const CAR_W   = X_RIGHT - X_LEFT;
   const CAR_L   = Z_NEAR  - Z_FAR;
   const CAR_H   = 4.5;
+  const BAR_STOOL_Z= -8.4;
   const CX      = (X_LEFT + X_RIGHT) / 2;
+  const DOOR = 2;
+  const WINDOW_PAD = 1.0;
+  const WINDOW_W = CAR_L - WINDOW_PAD * 2;
+  const WINDOW_Z = (Z_NEAR + Z_FAR) / 2;
 
   const WALK_PERIOD = 22; // seconds: 0–82% walking, 82–100% hidden/reset
 
@@ -516,12 +821,12 @@ export function Train() {
       conductorRef.current.visible = walking;
       conductorRef.current.position.z = z;
       conductorRef.current.rotation.y = Math.PI; // face −Z, walking into scene
-      conductorRef.current.position.y = walking ? Math.abs(Math.sin(t * 3.8)) * 0.024 : 0;
+      conductorRef.current.position.y = walking ? Math.abs(Math.sin(t * CONDUCTOR_WALK_FREQ)) * 0.030 : 0;
     }
   });
 
   // Bar geometry constants (must match LBar internals for NPC placement)
-  const BAR_STOOL_Z = -9.0 + 0.65 / 2 + 0.55; // −8.125
+ 
 
   return (
     <>
@@ -534,8 +839,8 @@ export function Train() {
         intensity={1.1}
         color="#ffcc66"
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
       />
       <directionalLight position={[-3, 2, -2]} intensity={0.22} color="#ff9933" />
 
@@ -553,7 +858,7 @@ export function Train() {
         ))}
 
         {/* ── Aisle runner rug ── */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[2.2, 0.03, (Z_NEAR + Z_FAR) / 2]} receiveShadow>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[2.05, 0.03, (Z_NEAR + Z_FAR) / 2]} receiveShadow>
           <planeGeometry args={[1.0, CAR_L - 1]} />
           <meshToonMaterial color="#cc2820" transparent opacity={0.88} />
         </mesh>
@@ -567,9 +872,14 @@ export function Train() {
           position={[X_LEFT + 0.06, 0.80, (Z_NEAR + Z_FAR) / 2]}>
           <meshToonMaterial color="#3e2010" />
         </RoundedBox>
-        {([-1.5, -3.5, -5.5, -7.5] as number[]).map((z) => (
-          <TrainWindow key={z} position={[X_LEFT + 0.14, 2.7, z]} rotation={[0, Math.PI / 2, 0]} />
-        ))}
+        <TrainWindow
+          position={[X_LEFT + 0.14, 1.9, WINDOW_Z]}
+          rotation={[0, Math.PI / 2, 0]}
+          width={WINDOW_W}
+          height={1.05}
+          struts={4}
+          showMoon
+        />
 
         {/* ── Right wall ── */}
         <RoundedBox args={[0.3, CAR_H, CAR_L]} radius={0.1} smoothness={4}
@@ -580,9 +890,35 @@ export function Train() {
           position={[X_RIGHT - 0.06, 0.80, (Z_NEAR + Z_FAR) / 2]}>
           <meshToonMaterial color="#3e2010" />
         </RoundedBox>
-        {([-1.5, -3.5, -5.5, -7.5] as number[]).map((z) => (
-          <TrainWindow key={z} position={[X_RIGHT - 0.14, 2.7, z]} rotation={[0, -Math.PI / 2, 0]} />
-        ))}
+        <TrainWindow
+          position={[X_RIGHT - 0.14, 1.9, WINDOW_Z]}
+          rotation={[0, -Math.PI / 2, 0]}
+          width={WINDOW_W}
+          height={1.05}
+          struts={4}
+        />
+
+        {/* ── Back wall (z=Z_FAR) — left fill panel beside sliding door ── */}
+        <RoundedBox args={[1.8, CAR_H, 0.28]} radius={0.08} smoothness={4}
+          position={[X_LEFT + 0.9, CAR_H / 2, Z_FAR - 0.14]} receiveShadow>
+          <meshToonMaterial color="#6a3a1a" />
+        </RoundedBox>
+
+        {/* ── Front wall (z=Z_NEAR) — left fill panel beside sliding door ── */}
+        <RoundedBox args={[1.8, CAR_H, 0.28]} radius={0.08} smoothness={4}
+          position={[X_LEFT + 0.9, CAR_H / 2, Z_NEAR + 0.14]} receiveShadow>
+          <meshToonMaterial color="#6a3a1a" />
+        </RoundedBox>
+
+        {/* ── Solid backdrop planes — block any gap visible through door frames ── */}
+        <mesh position={[CX, CAR_H / 2, Z_FAR - 0.55]}>
+          <planeGeometry args={[CAR_W + 0.6, CAR_H + 0.3]} />
+          <meshBasicMaterial color="#4a2810" />
+        </mesh>
+        <mesh position={[CX, CAR_H / 2, Z_NEAR + 0.55]} rotation={[0, Math.PI, 0]}>
+          <planeGeometry args={[CAR_W + 0.6, CAR_H + 0.3]} />
+          <meshBasicMaterial color="#4a2810" />
+        </mesh>
 
         {/* ── Ceiling ── */}
         <RoundedBox args={[CAR_W + 0.5, 0.4, CAR_L]} radius={0.15} smoothness={4}
@@ -599,31 +935,55 @@ export function Train() {
           <GlobeLamp key={z} position={[CX, CAR_H - 0.45, z]} />
         ))}
 
-        {/* ── Long side table ── */}
-        <RoundedBox args={[3.7, 0.14, 7.9]} radius={0.10} smoothness={4}
-          position={[-0.15, 0.73, -3.85]} castShadow receiveShadow>
-          <meshToonMaterial color="#3a2210" />
+        {/* ── Booth tables ── */}
+        {([-1.8, -5.3] as number[]).map((z) => (
+          <BoothSet key={z} z={z} />
+        ))}
+
+        {/* ── Avatar work table — spans both laptop positions (x=-1.8, x=0.9 at z=-2) ── */}
+        <RoundedBox args={[3.4, 0.06, 0.88]} radius={0.04} smoothness={3}
+          position={[-0.45, 0.81, -1.85]} castShadow receiveShadow>
+          <meshToonMaterial color="#b06420" />
         </RoundedBox>
-        {([-1.8, 1.5] as number[]).map((x) =>
-          ([-0.1, -7.6] as number[]).map((z) => (
-            <RoundedBox key={`${x}-${z}`} args={[0.18, 0.66, 0.18]} radius={0.06} smoothness={3}
-              position={[x, 0.33, z]}>
-              <meshToonMaterial color="#2a1808" />
-            </RoundedBox>
+        <RoundedBox args={[3.28, 0.07, 0.76]} radius={0.03} smoothness={3}
+          position={[-0.45, 0.745, -1.85]}>
+          <meshToonMaterial color="#4a2e16" />
+        </RoundedBox>
+        {([-1.54, 1.54] as number[]).map((dx) =>
+          ([-0.36, 0.36] as number[]).map((dz) => (
+            <mesh key={`${dx}-${dz}`} position={[-0.45 + dx, 0.365, -1.85 + dz]} castShadow>
+              <cylinderGeometry args={[0.022, 0.026, 0.73, 6]} />
+              <meshToonMaterial color="#3a1e0a" />
+            </mesh>
           ))
         )}
 
-        {/* ── Bench seats ── */}
-        {([-1.0, -2.6, -4.2, -5.8] as number[]).map((z) => (
-          <BenchSeat key={z} position={[3.4, 0.14, z]} rotation={[0, Math.PI / 2, 0]} />
-        ))}
-
         {/* ── Seated NPC passengers ── */}
         {/* Bench NPCs — positioned at seat surface y≈0.28, facing −X toward table */}
-        <TrainNPC position={[3.4, 0.28, -1.0]} rotation={[0, -Math.PI / 2, 0]} bodyColor="#8840c0" />
-        <TrainNPC position={[3.4, 0.28, -4.2]} rotation={[0, -Math.PI / 2, 0]} bodyColor="#c04030" />
+        <TrainNPC
+          position={[3.9, 0.28, -1]}
+          rotation={[0, Math.PI, 0]}
+          bodyColor="#8840c0"
+          hairColor="#2a1836"
+          kind="reader"
+        />
+        <TrainNPC
+          position={[3.9, 0.28, -6.2]}
+          rotation={[0, 0, 0]}
+          bodyColor="#c04030"
+          hairColor="#5b2c18"
+          skinColor="#e0a880"
+          kind="sleepy"
+        />
         {/* Bar stool NPC — sits at stool, faces bar (+Z away from back wall) */}
-        <TrainNPC position={[0.4, 0.62, BAR_STOOL_Z]} rotation={[0, Math.PI, 0]} bodyColor="#208860" />
+        <TrainNPC
+          position={[-0.5, 0.7, BAR_STOOL_Z]}
+          rotation={[0, Math.PI, 0]}
+          bodyColor="#208860"
+          hairColor="#183024"
+          skinColor="#d4a070"
+          kind="patron"
+        />
 
         {/* ── L-shaped bar ── */}
         <LBar />
@@ -632,8 +992,8 @@ export function Train() {
         <DrinkShelf position={[-1.2, 0, Z_FAR + 0.16]} />
 
         {/* ── Bartender bot ── */}
-        {/* Behind the main bar, facing +Z toward customers */}
-        <BartenderBot position={[-1.2, 0, Z_FAR + 0.82]} />
+        {/* Behind the rotated main bar, facing customers */}
+        <BartenderNPC position={[-1.35, 0, -9.8]} rotation={[0, 0, 0]} />
 
         {/* ── Destination sign (far end, above door) ── */}
         <group position={[CX, 4.0, Z_FAR + 0.3]}>
@@ -643,11 +1003,11 @@ export function Train() {
         </group>
 
         {/* ── Doors at both ends ── */}
-        <SlidingDoor position={[CX, 0, Z_NEAR]} conductorZ={conductorZ} triggerZ={1.5} />
-        <SlidingDoor position={[CX, 0, Z_FAR]} conductorZ={conductorZ} triggerZ={-9.8} flip />
+        <SlidingDoor position={[DOOR, 0, Z_NEAR]} conductorZ={conductorZ} triggerZ={1.5} />
+        <SlidingDoor position={[DOOR, 0, Z_FAR]} conductorZ={conductorZ} triggerZ={-9.8} flip />
 
         {/* ── Conductor ── */}
-        <ConductorBot botRef={conductorRef} />
+        <ConductorNPC conductorRef={conductorRef} />
 
         {/* ── Floating dust motes ── */}
         {Array.from({ length: 12 }, (_, i) => (
