@@ -28,19 +28,71 @@ export const DEFAULT_APPEARANCE = SKINS[0];
 
 const STORAGE_KEY = 'coworker.appearance';
 
+const COLOR_KEYS = ['bodyColor', 'skinTone', 'hairColor', 'eyeColor', 'chairColor'] as const;
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+function isColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX_COLOR_RE.test(value);
+}
+
+function appearanceFromStorage(value: unknown): AvatarAppearance | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const parsed = value as Partial<AvatarAppearance>;
+  if (typeof parsed.id !== 'string') return null;
+
+  const preset = SKINS.find((skin) => skin.id === parsed.id);
+  if (preset && !preset.locked && COLOR_KEYS.every((key) => parsed[key] === undefined)) {
+    return preset;
+  }
+
+  const bodyColor = parsed.bodyColor;
+  const skinTone = parsed.skinTone;
+  const hairColor = parsed.hairColor;
+  const eyeColor = parsed.eyeColor;
+  const chairColor = parsed.chairColor;
+
+  if (
+    !isColor(bodyColor) ||
+    !isColor(skinTone) ||
+    !isColor(hairColor) ||
+    !isColor(eyeColor) ||
+    !isColor(chairColor)
+  ) {
+    return preset ?? null;
+  }
+
+  return {
+    id: parsed.id === 'custom' || !preset ? 'custom' : preset.id,
+    name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : preset?.name ?? 'Custom',
+    bodyColor,
+    skinTone,
+    hairColor,
+    eyeColor,
+    chairColor,
+  };
+}
+
 export function loadAppearance(): AvatarAppearance {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_APPEARANCE;
-    const parsed = JSON.parse(raw) as { id?: string };
-    return SKINS.find((s) => s.id === parsed.id) ?? DEFAULT_APPEARANCE;
+    return appearanceFromStorage(JSON.parse(raw)) ?? DEFAULT_APPEARANCE;
   } catch {
     return DEFAULT_APPEARANCE;
   }
 }
 
 export function saveAppearance(skin: AvatarAppearance): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ id: skin.id }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    id: skin.id,
+    name: skin.name,
+    bodyColor: skin.bodyColor,
+    skinTone: skin.skinTone,
+    hairColor: skin.hairColor,
+    eyeColor: skin.eyeColor,
+    chairColor: skin.chairColor,
+  }));
 }
 
 const ENV_KEY = 'coworker.sceneEnv';

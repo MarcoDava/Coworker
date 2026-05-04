@@ -6,7 +6,7 @@ export type HotkeyConfig = {
   pause: string; // e.g. 'p'
 };
 
-export const DEFAULT_HOTKEYS: HotkeyConfig = { peek: 'Alt', callout: ' ', pause: 'p' };
+export const DEFAULT_HOTKEYS: HotkeyConfig = { peek: 'Tab', callout: ' ', pause: 'p' };
 export const LOOK_MODIFIER_OPTIONS = ['Alt', 'Shift', 'Control', 'Meta', 'CapsLock'] as const;
 export type LookModifier = (typeof LOOK_MODIFIER_OPTIONS)[number];
 
@@ -34,10 +34,10 @@ export function useHotkeys(
     const up = (e: KeyboardEvent) => {
       if (matchesKey(e, cfg.peek)) handlers.onPeekUp();
     };
-    window.addEventListener('keydown', down);
+    window.addEventListener('keydown', down, { capture: true });
     window.addEventListener('keyup', up);
     return () => {
-      window.removeEventListener('keydown', down);
+      window.removeEventListener('keydown', down, { capture: true });
       window.removeEventListener('keyup', up);
     };
   }, [cfg, handlers]);

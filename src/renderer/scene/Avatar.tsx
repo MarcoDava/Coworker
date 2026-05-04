@@ -2,30 +2,7 @@ import { Float, RoundedBox } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useRef, type MutableRefObject } from 'react';
 import * as THREE from 'three';
-
-// Head pivot sits at y=1.45 (neck). Eye y positions are relative to that group.
-function Eye({ x, eyeColor, opacity, depthWrite }: { x: number; eyeColor: string; opacity: number; depthWrite: boolean }) {
-  return (
-    <group position={[x, 0.10, 0.26]}>
-      <mesh castShadow>
-        <sphereGeometry args={[0.060, 12, 12]} />
-        <meshBasicMaterial color="white" transparent opacity={opacity} depthWrite={depthWrite} />
-      </mesh>
-      <mesh position={[0, 0, 0.052]}>
-        <circleGeometry args={[0.040, 12]} />
-        <meshBasicMaterial color={eyeColor} transparent opacity={opacity} depthWrite={depthWrite} />
-      </mesh>
-      <mesh position={[0, 0, 0.058]}>
-        <circleGeometry args={[0.022, 10]} />
-        <meshBasicMaterial color="#1a1a2e" transparent opacity={opacity} depthWrite={depthWrite} />
-      </mesh>
-      <mesh position={[0.015, 0.014, 0.062]}>
-        <circleGeometry args={[0.008, 8]} />
-        <meshBasicMaterial color="white" transparent opacity={opacity} depthWrite={depthWrite} />
-      </mesh>
-    </group>
-  );
-}
+import { Eye, Hair } from './CharacterParts';
 
 // Head group pivot Y — neck height. All head child y-coords are relative to this.
 const HEAD_PIVOT_Y = 1.45;
@@ -80,15 +57,22 @@ export function Avatar({
     // ── Body / arms / hands ──────────────────────────────────────────────────
     if (isTyping) {
       if (lh) {
-        lh.position.y = THREE.MathUtils.lerp(lh.position.y, 0.88 + Math.sin(t * 8.4) * 0.065, 0.20);
+        lh.position.y = THREE.MathUtils.lerp(lh.position.y, 0.92 + Math.sin(t * 8.4) * 0.065, 0.20);
         lh.position.z = THREE.MathUtils.lerp(lh.position.z, 0.50, 0.12);
       }
       if (rh) {
-        rh.position.y = THREE.MathUtils.lerp(rh.position.y, 0.88 + Math.sin(t * 9.1 + Math.PI * 0.62) * 0.065, 0.20);
+        rh.position.y = THREE.MathUtils.lerp(rh.position.y, 0.92 + Math.sin(t * 9.1 + Math.PI * 0.62) * 0.065, 0.20);
         rh.position.z = THREE.MathUtils.lerp(rh.position.z, 0.50, 0.12);
       }
-      if (la) la.rotation.x = THREE.MathUtils.lerp(la.rotation.x, 0.52, 0.08);
-      if (ra) ra.rotation.x = THREE.MathUtils.lerp(ra.rotation.x, 0.52, 0.08);
+      if (la) {
+        la.rotation.x = THREE.MathUtils.lerp(la.rotation.x, -1.7, 0.08);
+        la.position.z = THREE.MathUtils.lerp(la.position.z, 0.1, 0.08);
+        
+      }
+      if (ra){
+        ra.rotation.x = THREE.MathUtils.lerp(ra.rotation.x, -1.7, 0.08);
+        ra.position.z = THREE.MathUtils.lerp(ra.position.z, 0.1, 0.08);
+      }
       if (ub) {
         ub.rotation.x = THREE.MathUtils.lerp(ub.rotation.x, 0.10, 0.06);
         ub.rotation.z = THREE.MathUtils.lerp(ub.rotation.z, Math.sin(t * 1.1) * 0.018, 0.04);
@@ -96,15 +80,15 @@ export function Avatar({
     } else if (focused) {
       // Focused / screen-mode pose: locked-in, leaned forward, hands resting on keyboard
       if (lh) {
-        lh.position.y = THREE.MathUtils.lerp(lh.position.y, 0.86, 0.06);
+        lh.position.y = THREE.MathUtils.lerp(lh.position.y, 0.90, 0.06);
         lh.position.z = THREE.MathUtils.lerp(lh.position.z, 0.40, 0.06);
       }
       if (rh) {
-        rh.position.y = THREE.MathUtils.lerp(rh.position.y, 0.86, 0.06);
+        rh.position.y = THREE.MathUtils.lerp(rh.position.y, 0.90, 0.06);
         rh.position.z = THREE.MathUtils.lerp(rh.position.z, 0.40, 0.06);
       }
-      if (la) la.rotation.x = THREE.MathUtils.lerp(la.rotation.x, 0.42, 0.06);
-      if (ra) ra.rotation.x = THREE.MathUtils.lerp(ra.rotation.x, 0.42, 0.06);
+      if (la) la.rotation.x = THREE.MathUtils.lerp(la.rotation.x, -0.42, 0.06);
+      if (ra) ra.rotation.x = THREE.MathUtils.lerp(ra.rotation.x, -0.42, 0.06);
       if (ub) {
         ub.rotation.x = THREE.MathUtils.lerp(ub.rotation.x, 0.14, 0.05);
         ub.rotation.z = THREE.MathUtils.lerp(ub.rotation.z, 0, 0.05);
@@ -185,7 +169,7 @@ export function Avatar({
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       {/* Chair seat */}
-      <RoundedBox args={[0.76, 0.18, 0.72]} radius={0.12} smoothness={4} position={[0, 0.38, -0.10]} castShadow>
+      <RoundedBox args={[1, 0.23, 0.72]} radius={0.12} smoothness={4} position={[0, 0.38, -0.10]} castShadow>
         <meshToonMaterial color={chairColor} transparent opacity={bodyOpacity} depthWrite={!transparent} />
       </RoundedBox>
       {/* Chair back */}
@@ -205,22 +189,51 @@ export function Avatar({
       {/* Upper body group — leans forward when typing or focused */}
       <group ref={upperBodyRef}>
         {!transparent && (
-          <RoundedBox args={[0.58, 0.50, 0.48]} radius={0.19} smoothness={4} position={[0, 0.88, 0.0]}>
-            <meshBasicMaterial color="#1a1008" side={THREE.BackSide} />
-          </RoundedBox>
+          <>
+            <RoundedBox args={[0.58, 0.50, 0.5]} radius={0.19} smoothness={4} position={[0, 0.96, 0.05]}>
+              <meshBasicMaterial color="#1a1008" side={THREE.BackSide} />
+            </RoundedBox>
+            <RoundedBox args={[0.45, 0.5, 0.40]} radius={0.19} smoothness={4} position={[0, 0.78, 0.02]}>
+              <meshBasicMaterial color="#1a1008" side={THREE.BackSide} />
+            </RoundedBox>
+          </>
         )}
-        <RoundedBox args={[0.54, 0.46, 0.44]} radius={0.18} smoothness={4} position={[0, 0.88, 0.0]} castShadow>
+        <RoundedBox args={[0.54, 0.46, 0.46]} radius={0.18} smoothness={4} position={[0, 0.96, 0.05]} castShadow>
+          <meshToonMaterial color={color} transparent opacity={bodyOpacity} depthWrite={!transparent} />
+        </RoundedBox>
+        <RoundedBox args={[0.4, 0.46, 0.36]} radius={0.19} smoothness={4} position={[0, 0.78, 0.02]} castShadow>
           <meshToonMaterial color={color} transparent opacity={bodyOpacity} depthWrite={!transparent} />
         </RoundedBox>
 
         {/* Arms — pitch forward when typing/focused */}
-        <mesh ref={leftArmRef} position={[-0.36, 0.90, 0.0]} rotation={[0, 0, 0.32]} castShadow>
+        {!transparent && (
+          <>
+             <mesh ref={leftArmRef} position={[-0.36, 0.90, 0.0]} rotation={[0, Math.PI, 0.32]} castShadow>
+              <capsuleGeometry args={[0.08, 0.24, 4.1, 8.2]} />
+              <meshToonMaterial color="#131313" transparent opacity={bodyOpacity} depthWrite={!transparent} side={THREE.BackSide}/>
+            </mesh>
+            <mesh ref={rightArmRef} position={[0.36, 0.90, 0.0]} rotation={[0, Math.PI, -0.32]} castShadow>
+              <capsuleGeometry args={[0.08, 0.24, 4.1, 8.2]} />
+              <meshToonMaterial color="#1a1008" transparent opacity={bodyOpacity} depthWrite={!transparent} side={THREE.BackSide}/>
+            </mesh>
+          </>
+        )}
+        <mesh ref={leftArmRef} position={[-0.36, 0.90, 0.0]} rotation={[0, Math.PI, 0.32]} castShadow>
           <capsuleGeometry args={[0.072, 0.22, 4, 8]} />
           <meshToonMaterial color={color} transparent opacity={bodyOpacity} depthWrite={!transparent} />
         </mesh>
-        <mesh ref={rightArmRef} position={[0.36, 0.90, 0.0]} rotation={[0, 0, -0.32]} castShadow>
+        <mesh ref={rightArmRef} position={[0.36, 0.90, 0.0]} rotation={[0, Math.PI, -0.32]} castShadow>
           <capsuleGeometry args={[0.072, 0.22, 4, 8]} />
           <meshToonMaterial color={color} transparent opacity={bodyOpacity} depthWrite={!transparent} />
+        </mesh>
+        {/* Hands — inside upperBodyRef so they lean with the body */}
+        <mesh ref={leftHandRef}  position={[-0.40, 0.80, 0.0]} castShadow>
+          <sphereGeometry args={[0.095, 12, 12]} />
+          <meshToonMaterial color={skinColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
+        </mesh>
+        <mesh ref={rightHandRef} position={[0.40, 0.80, 0.0]} castShadow>
+          <sphereGeometry args={[0.095, 12, 12]} />
+          <meshToonMaterial color={skinColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
         </mesh>
       </group>
 
@@ -239,10 +252,10 @@ export function Avatar({
         </mesh>
 
         {/* Eyebrows */}
-        <RoundedBox args={[0.10, 0.025, 0.04]} radius={0.012} smoothness={3} position={[-0.11, 0.19, 0.27]} rotation={[0, 0, 0.18]} castShadow>
+        <RoundedBox args={[0.13, 0.026, 0.035]} radius={0.012} smoothness={3} position={[-0.115, 0.18, 0.285]} rotation={[0.05, 0, 0.10]} castShadow>
           <meshBasicMaterial color={hairColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
         </RoundedBox>
-        <RoundedBox args={[0.10, 0.025, 0.04]} radius={0.012} smoothness={3} position={[0.11, 0.19, 0.27]} rotation={[0, 0, -0.18]} castShadow>
+        <RoundedBox args={[0.13, 0.026, 0.035]} radius={0.012} smoothness={3} position={[0.115, 0.18, 0.285]} rotation={[0.05, 0, -0.10]} castShadow>
           <meshBasicMaterial color={hairColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
         </RoundedBox>
 
@@ -259,16 +272,7 @@ export function Avatar({
         <Eye x={-0.11} eyeColor={eyeColor} opacity={skinOpacity} depthWrite={!transparent} />
         <Eye x={0.11}  eyeColor={eyeColor} opacity={skinOpacity} depthWrite={!transparent} />
 
-        {/* Hair */}
-        <RoundedBox args={[0.56, 0.14, 0.52]} radius={0.09} smoothness={4} position={[0, 0.35, -0.02]} castShadow>
-          <meshToonMaterial color={hairColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
-        </RoundedBox>
-        <RoundedBox args={[0.12, 0.20, 0.48]} radius={0.07} smoothness={3} position={[-0.28, 0.27, -0.02]} castShadow>
-          <meshToonMaterial color={hairColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
-        </RoundedBox>
-        <RoundedBox args={[0.12, 0.20, 0.48]} radius={0.07} smoothness={3} position={[0.28, 0.27, -0.02]} castShadow>
-          <meshToonMaterial color={hairColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
-        </RoundedBox>
+        <Hair color={hairColor} opacity={skinOpacity} depthWrite={!transparent} />
 
         {/* Smile */}
         <mesh position={[0, -0.04, 0.295]} rotation={[0, 0, Math.PI]}>
@@ -276,16 +280,6 @@ export function Avatar({
           <meshBasicMaterial color="#c07060" transparent opacity={skinOpacity} depthWrite={!transparent} />
         </mesh>
       </group>
-
-      {/* Hands — round mitts, animated (outside head group) */}
-      <mesh ref={leftHandRef}  position={[-0.40, 0.80, 0.0]} castShadow>
-        <sphereGeometry args={[0.095, 12, 12]} />
-        <meshToonMaterial color={skinColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
-      </mesh>
-      <mesh ref={rightHandRef} position={[0.40, 0.80, 0.0]} castShadow>
-        <sphereGeometry args={[0.095, 12, 12]} />
-        <meshToonMaterial color={skinColor} transparent opacity={skinOpacity} depthWrite={!transparent} />
-      </mesh>
 
       {isIdle && (
         <Float speed={1.2} floatIntensity={0.18} rotationIntensity={0.08}>
