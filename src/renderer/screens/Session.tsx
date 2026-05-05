@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LobbyConfig } from './Lobby';
 import { loadSceneEnv, saveSceneEnv, type SceneEnv } from '../data/skins';
+import { SEAT_LAYOUTS } from '../data/seatLayouts';
 import { Library } from '../scene/Library';
 import { SpaceStation } from '../scene/SpaceStation';
 import { Train } from '../scene/Train';
@@ -29,8 +30,9 @@ type Props = {
   onQuit: () => void;
 };
 
-const GUEST_LAPTOP: [number, number, number] = [-1.8, 0, -2];
-const HOST_LAPTOP: [number, number, number] = [0.9, 0, -2];
+// Slot indices within SEAT_LAYOUTS: guest=0 (left), host=1 (right)
+const GUEST_SLOT = 0;
+const HOST_SLOT  = 1;
 const IDLE_THRESHOLD_SEC = 120;
 const LOOK_STORAGE_KEY = 'coworker.lookModifier';
 const QUIT_PHRASE = 'im a chicken, buk buk';
@@ -78,8 +80,13 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const screenModeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const store = useScoreStore();
-  const selfLaptop = cfg.role === 'host' ? HOST_LAPTOP : GUEST_LAPTOP;
-  const peerLaptop = cfg.role === 'host' ? GUEST_LAPTOP : HOST_LAPTOP;
+  const selfSlot = cfg.role === 'host' ? HOST_SLOT : GUEST_SLOT;
+  const peerSlot = cfg.role === 'host' ? GUEST_SLOT : HOST_SLOT;
+  const layout = SEAT_LAYOUTS[sceneEnv];
+  const selfSeat = layout[selfSlot];
+  const peerSeat = layout[peerSlot];
+  const selfLaptop = selfSeat.laptop;
+  const peerLaptop = peerSeat.laptop;
 
   function resetFreeLook() {
     draggingRef.current = false;
@@ -523,10 +530,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           label="you"
           onDoubleClick={() => void setScreenModeActive(true)}
         />
-        <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={store.pausedByPeer} label="friend" />
+        {cfg.playerCount > 1 && !peerLeft && (
+          <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={store.pausedByPeer} label="friend" />
+        )}
         {cameraMode !== 'firstPerson' && (
           <Avatar
-            position={[selfLaptop[0], 0, selfLaptop[2] + 0.8]}
+            position={[selfLaptop[0], 0, selfLaptop[2] + selfSeat.avatarZOffset]}
             color={cfg.appearance.bodyColor}
             skinColor={cfg.appearance.skinTone}
             hairColor={cfg.appearance.hairColor}
@@ -538,18 +547,20 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             lookRef={freeLookRef}
           />
         )}
-        <Avatar
-          position={[peerLaptop[0], 0, peerLaptop[2] + 1.15]}
-          color={cfg.peerAppearance.bodyColor}
-          skinColor={cfg.peerAppearance.skinTone}
-          hairColor={cfg.peerAppearance.hairColor}
-          eyeColor={cfg.peerAppearance.eyeColor}
-          chairColor={cfg.peerAppearance.chairColor}
-          rotationY={Math.PI}
-          isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
-          isTyping={peerTyping}
-          trackCamera
-        />
+        {cfg.playerCount > 1 && (
+          <Avatar
+            position={[peerLaptop[0], 0, peerLaptop[2] + peerSeat.avatarZOffset]}
+            color={cfg.peerAppearance.bodyColor}
+            skinColor={cfg.peerAppearance.skinTone}
+            hairColor={cfg.peerAppearance.hairColor}
+            eyeColor={cfg.peerAppearance.eyeColor}
+            chairColor={cfg.peerAppearance.chairColor}
+            rotationY={Math.PI}
+            isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
+            isTyping={peerTyping}
+            trackCamera
+          />
+        )}
         <CameraRig
           mode={cameraMode}
           peeking={peeking}

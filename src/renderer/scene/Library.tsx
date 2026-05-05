@@ -494,20 +494,18 @@ export function Library() {
         </group>
       ))}
 
-      <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.8, -2.1]} castShadow receiveShadow>
-        <meshToonMaterial color="#aa7040" />
-      </RoundedBox>
-      {[-2.75, 2.75].map((x) => (
-        <RoundedBox
-          key={x}
-          args={[0.22, 0.72, 1.3]}
-          radius={0.08}
-          smoothness={4}
-          position={[x, 0.4, -2.1]}
-          castShadow
-        >
-          <meshToonMaterial color="#885030" />
-        </RoundedBox>
+      {/* Desks — P1&P2 at z=-3.5 (rear), P3&P4 at z=-2.1 (original) */}
+      {([-3.8, 0.1] as number[]).map((dz) => (
+        <group key={dz}>
+          <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.7, dz]} castShadow receiveShadow>
+            <meshToonMaterial color="#aa7040" />
+          </RoundedBox>
+          {([-2.75, 2.75] as number[]).map((x) => (
+            <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.4, dz]} castShadow>
+              <meshToonMaterial color="#885030" />
+            </RoundedBox>
+          ))}
+        </group>
       ))}
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -2.7]} receiveShadow>

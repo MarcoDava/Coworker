@@ -17,6 +17,8 @@ export type LobbyConfig = {
   signalingUrl: string;
   appearance: AvatarAppearance;
   peerAppearance: AvatarAppearance;
+  soloMode: boolean;
+  playerCount: number;
 };
 
 type Props = { onStart: (cfg: LobbyConfig) => void };
@@ -95,6 +97,7 @@ export function Lobby({ onStart }: Props) {
   const selfIdRef = useRef(randomId());
   const avatarSeedRef = useRef(randomId());
   const membersRef = useRef<LobbyMember[]>([]);
+  const autoJoinPendingRef = useRef(true);
 
   const [displayName, setDisplayName] = useState('you');
   const [bio, setBio] = useState('');
@@ -130,7 +133,7 @@ export function Lobby({ onStart }: Props) {
   if (!signalingUrl.trim()) missing.push('signaling server');
   const canQueue = missing.length === 0;
   const selfId = selfIdRef.current;
-  const queueReady = members.length === 2;
+  const queueReady = members.length >= 1;
   const isLeader = hostId === selfId;
 
   function leaveQueue() {
@@ -178,12 +181,13 @@ export function Lobby({ onStart }: Props) {
       if (message.type === 'room-state') {
         setMembers(message.members);
         setHostId(message.hostId);
-        if (message.members.length < 2) {
-          setConnectionNote('Waiting for one more player...');
-        } else if (message.members.length === 2) {
-          setConnectionNote(message.hostId === selfId ? 'Queue full. Launch when ready.' : 'Queue full. Waiting for the host to launch.');
+        const n = message.members.length;
+        if (n < 2) {
+          setConnectionNote('Waiting for more players...');
+        } else if (n <= 4) {
+          setConnectionNote(message.hostId === selfId ? `${n} in queue. Launch when ready.` : `${n} in queue. Waiting for the host to launch.`);
         } else {
-          setConnectionNote('This room is crowded. Only the first two players should continue.');
+          setConnectionNote('This room is crowded. Only up to four players should continue.');
         }
         return;
       }
@@ -200,6 +204,8 @@ export function Lobby({ onStart }: Props) {
           signalingUrl: signalingUrl.trim(),
           appearance,
           peerAppearance,
+          soloMode: false,
+          playerCount: membersRef.current.length,
         });
       }
     });
@@ -224,6 +230,13 @@ export function Lobby({ onStart }: Props) {
       clientRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (autoJoinPendingRef.current && mode === 'create' && canQueue && !joined) {
+      autoJoinPendingRef.current = false;
+      joinQueue();
+    }
+  });
 
   if (charScreenOpen) {
     return (
@@ -289,25 +302,22 @@ export function Lobby({ onStart }: Props) {
                   boxShadow: queueReady ? '0 0 8px var(--good)' : '0 0 8px var(--warn)',
                 }}
               />
-              queue lobby · two players required
+              queue lobby
             </div>
             <h1 style={{ fontSize: 48, margin: '16px 0 6px', fontWeight: 800 }}>coworker queue</h1>
             <div style={{ color: 'var(--text-dim)', fontSize: 15 }}>
-              drop into a room, show your card, and don&apos;t launch until the duo is here.
+              drop into a room, show your card, and launch when everyone&apos;s here.
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 20 }}>
             <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 26 }}>Party Queue</h2>
-                  <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>{connectionNote}</div>
-                </div>
-                <div style={queueBadge}>{members.length}/2 in queue</div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 26 }}>Party Queue</h2>
+                <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>{connectionNote}</div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
                 {members.map((member) => (
                   <QueueCard
                     key={member.id}
@@ -316,18 +326,10 @@ export function Lobby({ onStart }: Props) {
                     isLeader={member.id === hostId}
                   />
                 ))}
-                {Array.from({ length: Math.max(0, 2 - members.length) }).map((_, index) => (
-                  <div key={`open-${index}`} style={emptySlotStyle}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>Open Slot</div>
-                    <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>
-                      Share room code <strong>{room || '------'}</strong> with your duo.
-                    </div>
-                  </div>
-                ))}
               </div>
 
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {!joined ? (
+                {mode === 'join' && !joined && (
                   <button
                     className="primary"
                     style={primaryButtonStyle}
@@ -336,7 +338,8 @@ export function Lobby({ onStart }: Props) {
                   >
                     Enter Queue
                   </button>
-                ) : (
+                )}
+                {joined && (
                   <>
                     <button
                       className="primary"
@@ -366,8 +369,12 @@ export function Lobby({ onStart }: Props) {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
                   <button
                     onClick={() => {
-                      setMode('create');
-                      if (!joined) setRoom(randomCode());
+                      if (mode !== 'create') {
+                        if (joined) leaveQueue();
+                        setMode('create');
+                        setRoom(randomCode());
+                        autoJoinPendingRef.current = true;
+                      }
                     }}
                     className={mode === 'create' ? 'primary' : ''}
                     style={{ flex: 1 }}
@@ -376,8 +383,10 @@ export function Lobby({ onStart }: Props) {
                   </button>
                   <button
                     onClick={() => {
+                      if (joined) leaveQueue();
+                      autoJoinPendingRef.current = false;
                       setMode('join');
-                      if (!joined) setRoom('');
+                      setRoom('');
                     }}
                     className={mode === 'join' ? 'primary' : ''}
                     style={{ flex: 1 }}
@@ -513,16 +522,6 @@ export function Lobby({ onStart }: Props) {
   );
 }
 
-const queueBadge: React.CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: 999,
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  fontSize: 12,
-  fontWeight: 700,
-  color: 'var(--text-dim)',
-};
-
 const primaryButtonStyle: React.CSSProperties = {
   padding: '16px 20px',
   fontSize: 16,
@@ -547,18 +546,6 @@ const tagStyle: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
   fontSize: 11,
   color: 'var(--text-dim)',
-};
-
-const emptySlotStyle: React.CSSProperties = {
-  minHeight: 108,
-  borderRadius: 24,
-  border: '1px dashed rgba(255,255,255,0.16)',
-  background: 'rgba(255,255,255,0.02)',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: 6,
-  padding: 18,
 };
 
 const textareaStyle: React.CSSProperties = {

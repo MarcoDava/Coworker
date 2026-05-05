@@ -2,70 +2,21 @@ import { ContactShadows, Environment, RoundedBox, Text } from '@react-three/drei
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { Bldg3D, genBuildings, pr } from './CityBuildings';
 
 const CITY_W = 40;
+// Buildings generated in train-normalized units then scaled up to world units.
+const BSCALE = 8;
 
-const BUILDING_COLORS = ['#07090f', '#090c14', '#0a0d16', '#080b12', '#0b0e18'] as const;
-
-type Building = {
-  x: number;
-  w: number;
-  h: number;
-  depth: number;
-  color: string;
-  yCenter: number;
-  windows: { wx: number; wy: number; faceZ: number; color: string }[];
-};
-
-function buildingStrip(count: number, seed: number, maxWins: number): Building[] {
-  return Array.from({ length: count }, (_, i) => {
-    const r1 = ((i * 37 + seed * 11) % 97) / 97;
-    const r2 = ((i * 53 + seed * 17) % 89) / 89;
-    const r3 = ((i * 71 + seed * 23) % 83) / 83;
-    const r4 = ((i * 89 + seed * 31) % 79) / 79;
-    const r5 = ((i * 97 + seed * 13) % 71) / 71;
-    const w = 0.5 + r1 * 1.4;
-    const h = 1.0 + r2 * 4.5;
-    const depth = 1.0 + r4 * 3.0;
-    const x = (i / count) * CITY_W;
-    const yTop = 2.0 + r3 * 3.2;
-    const yCenter = yTop - h / 2;
-    const color = BUILDING_COLORS[Math.floor(r5 * BUILDING_COLORS.length)];
-    const cols = Math.max(2, Math.min(5, Math.floor(w / 0.22)));
-    const rows = Math.max(2, Math.min(9, Math.floor(h / 0.26)));
-    const faceZ = depth / 2;
-    const wins: Building['windows'] = [];
-    for (let c = 0; c < cols && wins.length < maxWins; c++) {
-      for (let r = 0; r < rows && wins.length < maxWins; r++) {
-        if (((c * 7 + r * 3 + i * 11 + seed) % 10) <= 3) continue;
-        const p = (c + r + i + seed) % 3;
-        wins.push({
-          wx: -w / 2 + (c + 0.5) * (w / cols),
-          wy: yCenter - h / 2 + (r + 0.5) * (h / rows),
-          faceZ,
-          color: p === 0 ? '#ffcc88' : p === 1 ? '#ffe4b0' : '#aaccff',
-        });
-      }
-    }
-    return { x, w, h, depth, color, yCenter, windows: wins };
-  });
-}
-
-function CityLayer({
-  z,
-  count,
-  speed,
-  seed,
-  maxWins,
-}: {
-  z: number;
-  count: number;
-  speed: number;
-  seed: number;
-  maxWins: number;
+function SkyCityLayer({ layer, z, speed, opacity }: {
+  layer: 'far' | 'mid' | 'near';
+  z: number; speed: number; opacity: number;
 }) {
+  const STRIP_TRAIN = CITY_W / BSCALE;
+  const count = layer === 'far' ? 20 : layer === 'mid' ? 24 : 30;
   const groupRef = useRef<THREE.Group>(null);
-  const buildings = useMemo(() => buildingStrip(count, seed, maxWins), [count, seed, maxWins]);
+  const buildings = useMemo(() => genBuildings(count, STRIP_TRAIN, layer), [count, STRIP_TRAIN]);
+  const seedBase = layer === 'far' ? 0 : layer === 'mid' ? 1000 : 2000;
 
   useFrame((_, dt) => {
     const g = groupRef.current;
@@ -78,17 +29,12 @@ function CityLayer({
     <group ref={groupRef}>
       {([0, CITY_W] as number[]).map((offset) =>
         buildings.map((b, i) => (
-          <group key={`${offset}-${i}`} position={[b.x + offset, 0, z]}>
-            <mesh position={[0, b.yCenter, 0]} castShadow>
-              <boxGeometry args={[b.w, b.h, b.depth]} />
-              <meshToonMaterial color={b.color} />
-            </mesh>
-            {b.windows.map((w, j) => (
-              <mesh key={j} position={[w.wx, w.wy, w.faceZ + 0.02]}>
-                <planeGeometry args={[0.07, 0.09]} />
-                <meshBasicMaterial color={w.color} />
-              </mesh>
-            ))}
+          <group
+            key={`${offset}-${i}`}
+            position={[b.x * BSCALE + offset - CITY_W * 0.4, b.h * BSCALE / 2, z + (pr(seedBase + i * 7 + 99) - 0.5) * 1.2]}
+            scale={[BSCALE, BSCALE, 1]}
+          >
+            <Bldg3D b={b} seed={seedBase + i * 7} opacity={opacity} />
           </group>
         ))
       )}
@@ -96,6 +42,21 @@ function CityLayer({
   );
 }
 
+function PendantLight({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.55, 0]}>
+        <cylinderGeometry args={[0.004, 0.004, 1.1, 4]} />
+        <meshToonMaterial color="#151e2e" />
+      </mesh>
+      <mesh>
+        <coneGeometry args={[0.14, 0.20, 8, 1, true]} />
+        <meshToonMaterial color="#1a2540" emissive="#2244aa" emissiveIntensity={0.15} />
+      </mesh>
+      <pointLight intensity={0.50} distance={4.0} color="#d0e4ff" />
+    </group>
+  );
+}
 
 export function Skyscraper() {
   const stars = useMemo(
@@ -123,12 +84,11 @@ export function Skyscraper() {
         shadow-mapSize-height={2048}
       />
       <directionalLight position={[-6, 4, 2]} intensity={0.2} color="#3355aa" />
-      {/* City-facing fill light so building faces have visible tonal variation */}
       <directionalLight position={[0, 6, 8]} intensity={0.18} color="#7090cc" />
 
       <ContactShadows position={[0, 0.02, -2.1]} opacity={0.38} scale={11} blur={1.8} far={4.5} />
 
-      {/* Floor — polished dark concrete */}
+      {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[24, 24]} />
         <meshToonMaterial color="#0c1020" />
@@ -177,10 +137,16 @@ export function Skyscraper() {
         <meshBasicMaterial color="#b8ccee" transparent opacity={0.16} />
       </mesh>
 
-      {/* City — three parallax layers in background */}
-      <CityLayer z={-12} count={14} speed={0.12} seed={5} maxWins={5} />
-      <CityLayer z={-9.8} count={18} speed={0.26} seed={11} maxWins={8} />
-      <CityLayer z={-7.8} count={24} speed={0.48} seed={17} maxWins={12} />
+      {/* City — three parallax layers */}
+      <SkyCityLayer layer="far"  z={-12}  speed={0.12} opacity={0.70} />
+      <SkyCityLayer layer="mid"  z={-9.8} speed={0.26} opacity={1.00} />
+      <SkyCityLayer layer="near" z={-7.8} speed={0.48} opacity={1.00} />
+
+      {/* City glow on horizon */}
+      <mesh position={[0, -1.8, -9.0]}>
+        <planeGeometry args={[CITY_W * 0.6, 2.0]} />
+        <meshBasicMaterial color="#ff8c40" transparent opacity={0.10} />
+      </mesh>
 
       {/* Panoramic window frame */}
       <RoundedBox args={[15.6, 0.24, 0.28]} radius={0.08} smoothness={3} position={[0, 5.95, -5.74]}>
@@ -248,19 +214,48 @@ export function Skyscraper() {
         <pointLight position={[0, 0, 0.15]} intensity={0.35} distance={2.0} color="#cc44ff" />
       </group>
 
-      {/* Desk */}
-      <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, -2.1]} castShadow receiveShadow>
-        <meshToonMaterial color="#131c30" />
-      </RoundedBox>
-      <mesh position={[0, 0.67, -1.22]}>
-        <planeGeometry args={[6.1, 0.03]} />
-        <meshBasicMaterial color="#6688ff" transparent opacity={0.75} />
-      </mesh>
-      <pointLight position={[0, 0.8, -1.2]} intensity={0.3} distance={2.5} color="#6688ff" />
-      {([-2.75, 2.75] as number[]).map((x) => (
-        <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>
-          <meshToonMaterial color="#0d1420" />
-        </RoundedBox>
+      {/* Pendant lights above each desk row — professional cool-white fill */}
+      {([-3.8, 0.1] as number[]).map((dz) =>
+        ([-2.2, 0, 2.2] as number[]).map((dx) => (
+          <PendantLight key={`pend-${dz}-${dx}`} position={[dx, 4.6, dz]} />
+        ))
+      )}
+
+      {/* Wall sconces — cool-white professional ambient, both side walls */}
+      {([-3.5, -1.5, 0.5] as number[]).map((z) => (
+        <group key={`wl-${z}`} position={[-6.85, 2.8, z]}>
+          <RoundedBox args={[0.05, 0.22, 0.14]} radius={0.02} smoothness={3}>
+            <meshToonMaterial color="#0e1828" />
+          </RoundedBox>
+          <pointLight position={[0.2, 0, 0]} intensity={0.35} distance={5.0} color="#d0e4ff" />
+        </group>
+      ))}
+      {([-3.5, -1.5, 0.5] as number[]).map((z) => (
+        <group key={`wr-${z}`} position={[6.85, 2.8, z]}>
+          <RoundedBox args={[0.05, 0.22, 0.14]} radius={0.02} smoothness={3}>
+            <meshToonMaterial color="#0e1828" />
+          </RoundedBox>
+          <pointLight position={[-0.2, 0, 0]} intensity={0.35} distance={5.0} color="#d0e4ff" />
+        </group>
+      ))}
+
+      {/* Desks — P1&P2 at z=-3.8 (rear), P3&P4 at z=0.1 (front) — matches Library spacing */}
+      {([-3.8, 0.1] as number[]).map((dz) => (
+        <group key={dz}>
+          <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, dz]} castShadow receiveShadow>
+            <meshToonMaterial color="#131c30" />
+          </RoundedBox>
+          <mesh position={[0, 0.67, dz + 0.88]}>
+            <planeGeometry args={[6.1, 0.03]} />
+            <meshBasicMaterial color="#6688ff" transparent opacity={0.75} />
+          </mesh>
+          <pointLight position={[0, 0.8, dz + 0.9]} intensity={0.3} distance={2.5} color="#6688ff" />
+          {([-2.75, 2.75] as number[]).map((x) => (
+            <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, dz]} castShadow>
+              <meshToonMaterial color="#0d1420" />
+            </RoundedBox>
+          ))}
+        </group>
       ))}
     </>
   );

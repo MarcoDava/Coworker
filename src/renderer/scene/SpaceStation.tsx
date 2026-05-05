@@ -1,292 +1,222 @@
-import { ContactShadows, Environment, RoundedBox, Text } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// LCARS color palette
-const L = {
-  orange: '#FF9900',
-  peach: '#FF9966',
-  lilac: '#CC99CC',
-  brick: '#CC6666',
-  blue: '#9999FF',
-  yellow: '#FFCC99',
+// Option A: Brutalist Military
+const P = {
+  floor:  '#7a8898',  fGrid: '#60707f',
+  wall:   '#6a7480',  wallP: '#78838f',
+  ceil:   '#585f6a',  beam:  '#626e7a',
+  metal:  '#808c9a',  metD:  '#5a6470',
+  chair:  '#5a6270',  pad:   '#6a7280',
+  scBG:   '#040c1a',  scGl:  '#4488ee',
+  cons:   '#5e6878',
+  acc1:   '#60c8f0',  acc2:  '#ff4444',  acc3: '#55ee88',
+  trim:   '#50a8d0',  cove:  '#4488cc',
+} as const;
+
+// Shared materials — one instance per visual style, reused across all meshes
+const M = {
+  floor:   new THREE.MeshStandardMaterial({ color: P.floor,  roughness: 0.85, metalness: 0.35 }),
+  fGrid:   new THREE.MeshStandardMaterial({ color: P.fGrid,  roughness: 1,    metalness: 0    }),
+  metD:    new THREE.MeshStandardMaterial({ color: P.metD,   roughness: 0.7,  metalness: 0.45 }),
+  wall:    new THREE.MeshStandardMaterial({ color: P.wall,   roughness: 0.88, metalness: 0.2  }),
+  ceil:    new THREE.MeshStandardMaterial({ color: P.ceil,   roughness: 0.9,  metalness: 0.1  }),
+  beam:    new THREE.MeshStandardMaterial({ color: P.beam,   roughness: 0.6,  metalness: 0.6  }),
+  wallP:   new THREE.MeshStandardMaterial({ color: P.wallP,  roughness: 0.7,  metalness: 0.35 }),
+  metal:   new THREE.MeshStandardMaterial({ color: P.metal,  roughness: 0.4,  metalness: 0.82 }),
+  metDFr:  new THREE.MeshStandardMaterial({ color: P.metD,   roughness: 0.5,  metalness: 0.8  }),
+  metDDr:  new THREE.MeshStandardMaterial({ color: P.metD,   roughness: 0.3,  metalness: 0.88 }),
+  metalDr: new THREE.MeshStandardMaterial({ color: P.metal,  roughness: 0.2,  metalness: 0.92 }),
+  metDRl:  new THREE.MeshStandardMaterial({ color: P.metD,   roughness: 0.5,  metalness: 0.9  }),
+  chair:   new THREE.MeshStandardMaterial({ color: P.chair,  roughness: 0.5,  metalness: 0.65 }),
+  pad:     new THREE.MeshStandardMaterial({ color: P.pad,    roughness: 0.8,  metalness: 0.12 }),
+  cons:    new THREE.MeshStandardMaterial({ color: P.cons,   roughness: 0.45, metalness: 0.7  }),
+  consT:   new THREE.MeshStandardMaterial({ color: P.cons,   roughness: 0.4,  metalness: 0.7  }),
+  consA:   new THREE.MeshStandardMaterial({ color: P.cons,   roughness: 0.5,  metalness: 0.6  }),
+  trim:    new THREE.MeshStandardMaterial({ color: P.trim, emissive: new THREE.Color(P.trim), emissiveIntensity: 0.6,  roughness: 0.5, metalness: 0.2 }),
+  trimR:   new THREE.MeshStandardMaterial({ color: P.trim, emissive: new THREE.Color(P.trim), emissiveIntensity: 0.35, roughness: 0.5, metalness: 0.2 }),
+  trimS:   new THREE.MeshStandardMaterial({ color: P.trim, emissive: new THREE.Color(P.trim), emissiveIntensity: 0.5,  roughness: 0.5, metalness: 0.2 }),
+  acc1F:   new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 0.3,  roughness: 0.5, metalness: 0.2 }),
+  cove:    new THREE.MeshStandardMaterial({ color: P.cove, emissive: new THREE.Color(P.cove), emissiveIntensity: 0.8,  roughness: 0.5, metalness: 0.2 }),
+  scr:     new THREE.MeshStandardMaterial({ color: P.scBG, emissive: new THREE.Color(P.scGl), emissiveIntensity: 0.8,  roughness: 0.5, metalness: 0.2 }),
+  scrD:    new THREE.MeshStandardMaterial({ color: P.scBG, emissive: new THREE.Color(P.scGl), emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.2 }),
+  scrA:    new THREE.MeshStandardMaterial({ color: P.scBG, emissive: new THREE.Color(P.scGl), emissiveIntensity: 0.5,  roughness: 0.5, metalness: 0.2 }),
+  sub:     new THREE.MeshStandardMaterial({ color: '#001020', emissive: new THREE.Color('#002a5a'), emissiveIntensity: 0.7, roughness: 0.5, metalness: 0.2 }),
+  acc1I:   new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 1.1,  roughness: 0.5, metalness: 0.2 }),
+  acc2I:   new THREE.MeshStandardMaterial({ color: P.acc2, emissive: new THREE.Color(P.acc2), emissiveIntensity: 1.2,  roughness: 0.5, metalness: 0.2 }),
+  plq:     new THREE.MeshStandardMaterial({ color: P.metal, roughness: 0.3, metalness: 0.85 }),
+  plqL:    new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 0.95, roughness: 0.5, metalness: 0.2 }),
 };
 
-function LCARSPanel({
-  position,
-  rotation,
-  seed = 0,
-}: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  seed?: number;
-}) {
-  const colorList = [L.orange, L.peach, L.lilac, L.brick, L.blue, L.yellow];
-  const buttons = useMemo(() => {
-    const btns: { x: number; y: number; w: number; h: number; color: string; blink: boolean }[] = [];
-    // Left elbow column
-    for (let i = 0; i < 5; i++) {
-      btns.push({
-        x: -0.36, y: 0.16 - i * 0.09, w: 0.1, h: 0.07,
-        color: colorList[(i + seed) % colorList.length],
-        blink: (i * 3 + seed * 7) % 5 === 0,
-      });
-    }
-    // Right elbow column
-    for (let i = 0; i < 3; i++) {
-      btns.push({
-        x: 0.36, y: 0.14 - i * 0.10, w: 0.1, h: 0.07,
-        color: colorList[(i + seed + 2) % colorList.length],
-        blink: (i * 5 + seed * 3) % 7 === 0,
-      });
-    }
-    // Top bar
-    btns.push({ x: 0, y: 0.28, w: 0.44, h: 0.06, color: L.orange, blink: false });
-    // Bottom bar
-    btns.push({ x: 0, y: -0.28, w: 0.44, h: 0.06, color: L.peach, blink: false });
-    // Center display
-    btns.push({ x: 0, y: 0, w: 0.36, h: 0.24, color: '#030610', blink: false });
-    // Indicator lights on display
-    for (let i = 0; i < 4; i++) {
-      btns.push({
-        x: -0.12 + i * 0.08, y: 0.06, w: 0.05, h: 0.03,
-        color: i % 2 === 0 ? L.blue : L.orange,
-        blink: i % 2 === 0,
-      });
-    }
-    return btns;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed]);
+// Button materials indexed [acc1, acc2, acc3] at different intensities
+const BTN85 = [
+  new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 0.85, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc2, emissive: new THREE.Color(P.acc2), emissiveIntensity: 0.85, roughness: 0.5, metalness: 0.2 }),
+];
+const BTN90 = [
+  new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc2, emissive: new THREE.Color(P.acc2), emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc3, emissive: new THREE.Color(P.acc3), emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.2 }),
+];
+const BTN100 = [
+  new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 1.0, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc2, emissive: new THREE.Color(P.acc2), emissiveIntensity: 1.0, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc3, emissive: new THREE.Color(P.acc3), emissiveIntensity: 1.0, roughness: 0.5, metalness: 0.2 }),
+];
+const PNL75 = [
+  new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 0.75, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc2, emissive: new THREE.Color(P.acc2), emissiveIntensity: 0.75, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc3, emissive: new THREE.Color(P.acc3), emissiveIntensity: 0.75, roughness: 0.5, metalness: 0.2 }),
+];
+const AFT60 = [
+  new THREE.MeshStandardMaterial({ color: P.acc1, emissive: new THREE.Color(P.acc1), emissiveIntensity: 0.6, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc2, emissive: new THREE.Color(P.acc2), emissiveIntensity: 0.6, roughness: 0.5, metalness: 0.2 }),
+  new THREE.MeshStandardMaterial({ color: P.acc3, emissive: new THREE.Color(P.acc3), emissiveIntensity: 0.6, roughness: 0.5, metalness: 0.2 }),
+];
 
-  const refs = useRef<(THREE.Mesh | null)[]>([]);
+// Shared geometry for repeated small buttons
+const BTN_GEO_09 = new THREE.BoxGeometry(0.09, 0.035, 0.09);
+const BTN_GEO_07 = new THREE.BoxGeometry(0.07, 0.032, 0.07);
+const BTN_GEO_08 = new THREE.BoxGeometry(0.08, 0.035, 0.08);
+const BTN_GEO_PL = new THREE.BoxGeometry(0.045, 0.09, 0.09);
+const BTN_GEO_AF = new THREE.BoxGeometry(0.19, 0.045, 0.05);
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    buttons.forEach((b, i) => {
-      if (!b.blink) return;
-      const mesh = refs.current[i];
-      if (!mesh) return;
-      (mesh.material as THREE.MeshBasicMaterial).opacity =
-        Math.sin(t * 1.5 + i * 1.3) > 0 ? 0.9 : 0.22;
-    });
-  });
-
+function Floor() {
+  const xLines = Array.from({ length: 8 }, (_, k) => -7 + k * 2);
+  const zLines = Array.from({ length: 6 }, (_, k) => -5 + k * 2);
   return (
-    <group position={position} rotation={rotation}>
-      <RoundedBox args={[0.88, 0.68, 0.06]} radius={0.04} smoothness={3}>
-        <meshToonMaterial color="#0a0a0a" />
-      </RoundedBox>
-      {buttons.map((b, i) => (
-        <mesh
-          key={i}
-          ref={(el) => { refs.current[i] = el; }}
-          position={[b.x, b.y, 0.034]}
-        >
-          <planeGeometry args={[b.w, b.h]} />
-          <meshBasicMaterial color={b.color} transparent />
+    <group>
+      <mesh position={[0, -0.07, 0]} material={M.floor} receiveShadow>
+        <boxGeometry args={[16, 0.14, 12]} />
+      </mesh>
+      {xLines.map((gx) => (
+        <mesh key={gx} position={[gx, 0.01, 0]} material={M.fGrid}>
+          <boxGeometry args={[0.05, 0.01, 12]} />
         </mesh>
       ))}
+      {zLines.map((gz) => (
+        <mesh key={gz} position={[0, 0.01, gz]} material={M.fGrid}>
+          <boxGeometry args={[16, 0.01, 0.05]} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.065, 1.3]} material={M.metD} receiveShadow>
+        <boxGeometry args={[16, 0.13, 5.2]} />
+      </mesh>
+      <mesh position={[0, 0.14, -1.28]} material={M.trim}>
+        <boxGeometry args={[16, 0.035, 0.05]} />
+      </mesh>
+      <mesh position={[-6.55, 0.01, -1.0]} material={M.acc1F}>
+        <boxGeometry args={[0.04, 0.02, 9.8]} />
+      </mesh>
+      <mesh position={[6.55, 0.01, -1.0]} material={M.acc1F}>
+        <boxGeometry args={[0.04, 0.02, 9.8]} />
+      </mesh>
     </group>
   );
 }
 
-function WallStrip({ position, rotation }: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-}) {
+function Walls() {
+  const beamXs = [-6, -3, 0, 3, 6];
+  const beamZs = [-4, -2, 0, 2];
   return (
-    <group position={position} rotation={rotation}>
-      <RoundedBox args={[0.08, 4.0, 0.06]} radius={0.03} smoothness={3}>
-        <meshToonMaterial color="#1c1a10" />
-      </RoundedBox>
-      <mesh>
-        <planeGeometry args={[0.04, 3.8]} />
-        <meshBasicMaterial color="#ffd080" transparent opacity={0.72} />
+    <group>
+      <mesh position={[0, 3.5, -6.05]} material={M.wall} receiveShadow>
+        <boxGeometry args={[16, 7.2, 0.28]} />
       </mesh>
-      <pointLight intensity={0.28} distance={3.5} color="#ffd080" />
+      <mesh position={[-7.22, 3.5, 0]} material={M.wall} receiveShadow>
+        <boxGeometry args={[0.28, 7.2, 12]} />
+      </mesh>
+      <mesh position={[7.22, 3.5, 0]} material={M.wall} receiveShadow>
+        <boxGeometry args={[0.28, 7.2, 12]} />
+      </mesh>
+      <mesh position={[0, 3.5, 2.55]} material={M.wall} receiveShadow>
+        <boxGeometry args={[16, 7.2, 0.28]} />
+      </mesh>
+      <mesh position={[0, 6.16, 0]} material={M.ceil}>
+        <boxGeometry args={[16, 0.22, 12]} />
+      </mesh>
+      {beamXs.map((bx) => (
+        <mesh key={`bv${bx}`} position={[bx, 3, 0]} material={M.beam} castShadow>
+          <boxGeometry args={[0.2, 6, 0.2]} />
+        </mesh>
+      ))}
+      {beamZs.map((bz) => (
+        <mesh key={`bh${bz}`} position={[0, 5.82, bz]} material={M.beam}>
+          <boxGeometry args={[16, 0.15, 0.15]} />
+        </mesh>
+      ))}
+      <mesh position={[0, 5.97, -4.4]} material={M.cove}>
+        <boxGeometry args={[13.5, 0.05, 0.08]} />
+      </mesh>
+      <mesh position={[0, 5.97, 0.6]} material={M.cove}>
+        <boxGeometry args={[13.5, 0.05, 0.08]} />
+      </mesh>
+      <pointLight color={P.cove} intensity={2.5} position={[0, 5.85, -4.4]} distance={20} decay={2} />
+      <pointLight color={P.cove} intensity={2.5} position={[0, 5.85, 0.6]} distance={20} decay={2} />
     </group>
   );
 }
 
 function Viewscreen() {
-  const stars = useMemo(
-    () =>
-      Array.from({ length: 90 }, (_, i) => ({
-        x: -4.0 + ((i * 41 + 7) % 100) / 12.5,
-        y: 1.0 + ((i * 29 + 13) % 100) / 33,
-        r: 0.007 + ((i * 11) % 5) * 0.003,
-      })),
-    []
-  );
-
-  return (
-    <group position={[0, 0, -5.72]}>
-      {/* Screen frame */}
-      <RoundedBox args={[8.8, 4.4, 0.14]} radius={0.1} smoothness={3} position={[0, 2.9, -0.01]}>
-        <meshToonMaterial color="#1a1a18" />
-      </RoundedBox>
-      {/* Screen surface */}
-      <mesh position={[0, 2.9, 0.08]}>
-        <planeGeometry args={[8.2, 3.8]} />
-        <meshBasicMaterial color="#020510" />
-      </mesh>
-      {/* Stars */}
-      {stars.map((s, i) => (
-        <mesh key={i} position={[s.x, s.y + 1.3, 0.09]}>
-          <circleGeometry args={[s.r, 6]} />
-          <meshBasicMaterial color="#d8e8ff" transparent opacity={0.85} />
+  const subPanels: JSX.Element[] = [];
+  for (let si = 0; si < 3; si++) {
+    for (let sj = 0; sj < 2; sj++) {
+      subPanels.push(
+        <mesh key={`sp${si}${sj}`} position={[-2.9 + si * 2.9, 2.25 + sj * 2.12, -5.8]} material={M.sub}>
+          <boxGeometry args={[2.9, 2.12, 0.05]} />
         </mesh>
-      ))}
-      {/* Planet */}
-      <mesh position={[2.4, 3.4, 0.10]}>
-        <circleGeometry args={[0.62, 28]} />
-        <meshBasicMaterial color="#2244aa" />
-      </mesh>
-      <mesh position={[2.4, 3.4, 0.11]}>
-        <ringGeometry args={[0.62, 0.70, 28]} />
-        <meshBasicMaterial color="#4466cc" transparent opacity={0.45} />
-      </mesh>
-      {/* Nebula glow */}
-      <mesh position={[-1.8, 2.6, 0.09]}>
-        <circleGeometry args={[1.4, 16]} />
-        <meshBasicMaterial color="#220033" transparent opacity={0.22} />
-      </mesh>
-      <mesh position={[-1.0, 2.2, 0.09]}>
-        <circleGeometry args={[0.8, 16]} />
-        <meshBasicMaterial color="#330055" transparent opacity={0.15} />
-      </mesh>
-      {/* Screen glow onto bridge */}
-      <pointLight position={[0, 2.9, 0.6]} intensity={0.45} distance={7} color="#3355aa" />
-    </group>
-  );
-}
-
-function CaptainChair({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <RoundedBox args={[0.58, 0.10, 0.52]} radius={0.05} smoothness={3} position={[0, 0.44, 0]}>
-        <meshToonMaterial color="#3c3a3a" />
-      </RoundedBox>
-      <RoundedBox args={[0.54, 0.62, 0.08]} radius={0.05} smoothness={3} position={[0, 0.85, -0.22]}>
-        <meshToonMaterial color="#3c3a3a" />
-      </RoundedBox>
-      <RoundedBox args={[0.48, 0.06, 0.09]} radius={0.03} smoothness={3} position={[-0.33, 0.55, 0.04]}>
-        <meshToonMaterial color="#7a5a3a" />
-      </RoundedBox>
-      <RoundedBox args={[0.48, 0.06, 0.09]} radius={0.03} smoothness={3} position={[0.33, 0.55, 0.04]}>
-        <meshToonMaterial color="#7a5a3a" />
-      </RoundedBox>
-      {/* Arm control panel */}
-      <RoundedBox args={[0.18, 0.02, 0.10]} radius={0.01} smoothness={3} position={[0.33, 0.60, -0.04]}>
-        <meshBasicMaterial color="#030810" />
-      </RoundedBox>
-      {[L.orange, L.blue, L.lilac].map((c, i) => (
-        <mesh key={i} position={[0.33 - 0.06 + i * 0.06, 0.615, -0.04]}>
-          <planeGeometry args={[0.04, 0.025]} />
-          <meshBasicMaterial color={c} />
-        </mesh>
-      ))}
-      <RoundedBox args={[0.22, 0.42, 0.22]} radius={0.05} smoothness={3} position={[0, 0.21, 0]}>
-        <meshToonMaterial color="#2a2a2a" />
-      </RoundedBox>
-    </group>
-  );
-}
-
-function OfficerChair({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <RoundedBox args={[0.44, 0.08, 0.40]} radius={0.04} smoothness={3} position={[0, 0.44, 0]}>
-        <meshToonMaterial color="#383838" />
-      </RoundedBox>
-      <RoundedBox args={[0.40, 0.48, 0.07]} radius={0.04} smoothness={3} position={[0, 0.74, -0.18]}>
-        <meshToonMaterial color="#383838" />
-      </RoundedBox>
-      <RoundedBox args={[0.14, 0.38, 0.14]} radius={0.04} smoothness={3} position={[0, 0.18, 0]}>
-        <meshToonMaterial color="#252525" />
-      </RoundedBox>
-    </group>
-  );
-}
-
-function CommandRail() {
+      );
+    }
+  }
   return (
     <group>
-      {/* Left rail */}
-      <RoundedBox args={[0.08, 0.82, 2.2]} radius={0.03} smoothness={3} position={[-2.45, 0.41, -0.9]}>
-        <meshToonMaterial color="#7a5a3a" />
-      </RoundedBox>
-      <RoundedBox args={[0.12, 0.04, 2.22]} radius={0.02} smoothness={3} position={[-2.45, 0.85, -0.9]}>
-        <meshToonMaterial color="#9a7a5a" />
-      </RoundedBox>
-      {/* Right rail */}
-      <RoundedBox args={[0.08, 0.82, 2.2]} radius={0.03} smoothness={3} position={[2.45, 0.41, -0.9]}>
-        <meshToonMaterial color="#7a5a3a" />
-      </RoundedBox>
-      <RoundedBox args={[0.12, 0.04, 2.22]} radius={0.02} smoothness={3} position={[2.45, 0.85, -0.9]}>
-        <meshToonMaterial color="#9a7a5a" />
-      </RoundedBox>
-      {/* Rear cross rail */}
-      <RoundedBox args={[5.0, 0.08, 0.08]} radius={0.03} smoothness={3} position={[0, 0.82, -2.0]}>
-        <meshToonMaterial color="#7a5a3a" />
-      </RoundedBox>
+      <mesh position={[0, 4.2, -5.87]} material={M.scr}>
+        <boxGeometry args={[9.1, 4.6, 0.12]} />
+      </mesh>
+      <mesh position={[0, 6.62, -5.87]} material={M.metDFr}>
+        <boxGeometry args={[9.5, 0.22, 0.18]} />
+      </mesh>
+      <mesh position={[0, 1.88, -5.87]} material={M.metDFr}>
+        <boxGeometry args={[9.5, 0.22, 0.18]} />
+      </mesh>
+      <mesh position={[-4.61, 4.25, -5.87]} material={M.metDFr}>
+        <boxGeometry args={[0.22, 4.96, 0.18]} />
+      </mesh>
+      <mesh position={[4.61, 4.25, -5.87]} material={M.metDFr}>
+        <boxGeometry args={[0.22, 4.96, 0.18]} />
+      </mesh>
+      {subPanels}
+      <pointLight color={P.scGl} intensity={4.0} position={[0, 4.2, -4.6]} distance={16} decay={2} />
     </group>
   );
 }
 
-function TacticalConsole() {
-  // Arc of 3 panels at the aft edge of command area, standing console
-  return (
-    <group position={[0, 0.20, 0.55]}>
-      {([-0.88, 0, 0.88] as number[]).map((x, i) => {
-        const rot = (i - 1) * 0.18;
-        return (
-          <group key={i} rotation={[0, rot, 0]} position={[x, 0, 0]}>
-            <RoundedBox args={[0.86, 0.12, 0.52]} radius={0.04} smoothness={3} position={[0, 0.96, 0]}>
-              <meshToonMaterial color="#1e2222" />
-            </RoundedBox>
-            <mesh position={[0, 1.04, -0.09]} rotation={[-Math.PI * 0.18, 0, 0]}>
-              <planeGeometry args={[0.68, 0.28]} />
-              <meshBasicMaterial color="#020610" />
-            </mesh>
-            {[L.orange, L.blue, L.peach].map((c, j) => (
-              <mesh key={j} position={[-0.18 + j * 0.18, 1.055, -0.11]} rotation={[-Math.PI * 0.18, 0, 0]}>
-                <planeGeometry args={[0.13, 0.07]} />
-                <meshBasicMaterial color={c} />
-              </mesh>
-            ))}
-            <RoundedBox args={[0.82, 0.90, 0.44]} radius={0.05} smoothness={3} position={[0, 0.45, 0]}>
-              <meshToonMaterial color="#1a1e22" />
-            </RoundedBox>
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-function AftStations() {
+function Chair({ cx, cy, cz, captain }: { cx: number; cy: number; cz: number; captain: boolean }) {
+  const s = captain ? 1.0 : 0.8;
   return (
     <group>
-      {([-2.4, 0, 2.4] as number[]).map((x, i) => (
-        <group key={i} position={[x, 0.20, 1.65]}>
-          <RoundedBox args={[1.15, 0.12, 0.52]} radius={0.05} smoothness={3} position={[0, 0.90, 0]}>
-            <meshToonMaterial color="#1e2020" />
-          </RoundedBox>
-          <mesh position={[0, 0.99, -0.12]} rotation={[-Math.PI * 0.18, 0, 0]}>
-            <planeGeometry args={[0.92, 0.38]} />
-            <meshBasicMaterial color="#020610" />
-          </mesh>
-          {[L.orange, L.blue, L.lilac, L.peach].map((c, j) => (
-            <mesh key={j} position={[-0.33 + j * 0.22, 1.005, -0.14]} rotation={[-Math.PI * 0.18, 0, 0]}>
-              <planeGeometry args={[0.16, 0.07]} />
-              <meshBasicMaterial color={c} transparent opacity={0.9} />
-            </mesh>
-          ))}
-          <RoundedBox args={[1.05, 0.82, 0.42]} radius={0.04} smoothness={3} position={[0, 0.41, 0]}>
-            <meshToonMaterial color="#181c1e" />
-          </RoundedBox>
+      <mesh position={[cx, cy + 0.07 * s, cz]} material={M.chair} castShadow>
+        <cylinderGeometry args={[0.56 * s, 0.62 * s, 0.14, 16]} />
+      </mesh>
+      <mesh position={[cx, cy + 0.34 * s, cz]} material={M.chair} castShadow>
+        <cylinderGeometry args={[0.07 * s, 0.07 * s, 0.44 * s, 8]} />
+      </mesh>
+      <mesh position={[cx, cy + 0.64 * s, cz]} material={M.pad} castShadow>
+        <boxGeometry args={[0.88 * s, 0.13 * s, 0.82 * s]} />
+      </mesh>
+      <mesh position={[cx, cy + 1.12 * s, cz + 0.36 * s]} material={M.pad} castShadow>
+        <boxGeometry args={[0.86 * s, 0.86 * s, 0.1 * s]} />
+      </mesh>
+      <mesh position={[cx - 0.5 * s, cy + 0.73 * s, cz]} material={M.chair}>
+        <boxGeometry args={[0.13 * s, 0.06 * s, 0.68 * s]} />
+      </mesh>
+      <mesh position={[cx + 0.5 * s, cy + 0.73 * s, cz]} material={M.chair}>
+        <boxGeometry args={[0.13 * s, 0.06 * s, 0.68 * s]} />
+      </mesh>
+      {captain && ([0, 1, 2] as const).map((i) => (
+        <group key={i}>
+          <mesh position={[cx - 0.5 + i * 0.07, cy + 0.8, cz + 0.06]} geometry={BTN_GEO_07} material={BTN90[i]} />
+          <mesh position={[cx + 0.5 - i * 0.07, cy + 0.8, cz + 0.06]} geometry={BTN_GEO_07} material={BTN90[i]} />
         </group>
       ))}
     </group>
@@ -294,207 +224,242 @@ function AftStations() {
 }
 
 function ForwardConsole() {
+  const sections = [
+    { sx: -2, sz: -3.8, ry:  0.18 },
+    { sx:  0, sz: -3.5, ry:  0    },
+    { sx:  2, sz: -3.8, ry: -0.18 },
+  ];
   return (
     <group>
-      <RoundedBox args={[6.4, 0.14, 1.85]} radius={0.12} smoothness={4} position={[0, 0.73, -2.1]} castShadow receiveShadow>
-        <meshToonMaterial color="#1a1e20" />
-      </RoundedBox>
-      {/* LCARS display surfaces */}
-      {([-1.8, 0.9] as number[]).map((x, idx) => (
+      {sections.map(({ sx, sz, ry }, idx) => (
         <group key={idx}>
-          <mesh position={[x, 0.81, -2.30]} rotation={[-Math.PI * 0.18, 0, 0]}>
-            <planeGeometry args={[0.92, 0.34]} />
-            <meshBasicMaterial color="#020610" />
+          <mesh position={[sx, 0.44, sz]} rotation={[0, ry, 0]} material={M.cons} castShadow receiveShadow>
+            <boxGeometry args={[1.6, 0.88, 0.72]} />
           </mesh>
-          {[L.orange, L.blue, L.peach].map((c, j) => (
-            <mesh key={j} position={[x - 0.22 + j * 0.22, 0.826, -2.32]} rotation={[-Math.PI * 0.18, 0, 0]}>
-              <planeGeometry args={[0.17, 0.06]} />
-              <meshBasicMaterial color={c} />
-            </mesh>
+          <mesh position={[sx, 0.9, sz - 0.04]} rotation={[0.28, ry, 0]} material={M.scrD}>
+            <boxGeometry args={[1.35, 0.04, 0.52]} />
+          </mesh>
+          {([-2, -1, 0, 1, 2] as const).map((bxi) => (
+            <mesh key={bxi} position={[sx + bxi * 0.18, 0.9, sz - 0.14]} geometry={BTN_GEO_09} material={BTN85[bxi % 2 === 0 ? 0 : 1]} />
           ))}
         </group>
       ))}
-      {/* LCARS accent strip on front edge */}
-      <mesh position={[0, 0.67, -1.22]}>
-        <planeGeometry args={[6.1, 0.03]} />
-        <meshBasicMaterial color={L.orange} transparent opacity={0.65} />
+      <mesh position={[0, 0.04, -3.38]} material={M.trimS}>
+        <boxGeometry args={[5.4, 0.03, 0.05]} />
       </mesh>
-      <pointLight position={[0, 0.8, -1.2]} intensity={0.3} distance={2.5} color={L.orange} />
-      {([-2.75, 2.75] as number[]).map((x) => (
-        <RoundedBox key={x} args={[0.22, 0.72, 1.3]} radius={0.08} smoothness={4} position={[x, 0.30, -2.1]} castShadow>
-          <meshToonMaterial color="#141618" />
-        </RoundedBox>
+      <pointLight color={P.acc1} intensity={2.5} position={[-2.5, 5.6, -3.5]} distance={8} decay={2} />
+      <pointLight color={P.acc1} intensity={2.5} position={[2.5, 5.6, -3.5]} distance={8} decay={2} />
+    </group>
+  );
+}
+
+function CommandRail() {
+  const ry = 0.97;
+  const posts: [number, number, number][] = [
+    [-2.5, ry / 2, -2.1], [2.5, ry / 2, -2.1],
+    [-2.5, ry / 2, 0.18], [2.5, ry / 2, 0.18],
+  ];
+  return (
+    <group>
+      <mesh position={[0, ry, -2.1]} material={M.metal}>
+        <boxGeometry args={[5.3, 0.065, 0.065]} />
+      </mesh>
+      <mesh position={[0, ry, 0.18]} material={M.metal}>
+        <boxGeometry args={[5.3, 0.065, 0.065]} />
+      </mesh>
+      <mesh position={[-2.5, ry, -0.96]} material={M.metal}>
+        <boxGeometry args={[0.065, 0.065, 2.4]} />
+      </mesh>
+      <mesh position={[2.5, ry, -0.96]} material={M.metal}>
+        <boxGeometry args={[0.065, 0.065, 2.4]} />
+      </mesh>
+      <mesh position={[0, ry + 0.045, -2.1]} material={M.trimR}>
+        <boxGeometry args={[5.3, 0.02, 0.026]} />
+      </mesh>
+      {posts.map(([px, py, pz], i) => (
+        <mesh key={i} position={[px, py, pz]} material={M.metDRl}>
+          <boxGeometry args={[0.065, ry, 0.065]} />
+        </mesh>
       ))}
     </group>
   );
 }
 
-function TurboliftDoor({ position }: { position: [number, number, number] }) {
+function TacticalConsole() {
+  const platY = 0.13;
+  const sections = [
+    { sx: -1.2, sy: 0.53, sz: 0.72, sry:  0.28 },
+    { sx:  0,   sy: 0.53, sz: 0.58, sry:  0    },
+    { sx:  1.2, sy: 0.53, sz: 0.72, sry: -0.28 },
+  ];
   return (
-    <group position={position}>
-      <RoundedBox args={[1.4, 2.9, 0.06]} radius={0.05} smoothness={3} position={[0, 1.45, 0]}>
-        <meshToonMaterial color="#4a4640" />
-      </RoundedBox>
-      <RoundedBox args={[0.04, 2.8, 0.04]} radius={0.02} smoothness={3} position={[0, 1.45, 0.04]}>
-        <meshToonMaterial color="#2a2820" />
-      </RoundedBox>
-      <RoundedBox args={[1.52, 3.02, 0.04]} radius={0.06} smoothness={3} position={[0, 1.51, -0.03]}>
-        <meshToonMaterial color="#5a5450" />
-      </RoundedBox>
-      <mesh position={[0, 2.97, 0.05]}>
-        <planeGeometry args={[0.8, 0.05]} />
-        <meshBasicMaterial color={L.orange} transparent opacity={0.85} />
-      </mesh>
-      <pointLight position={[0, 3.0, 0.2]} intensity={0.12} distance={1.5} color={L.orange} />
+    <group>
+      {sections.map(({ sx, sy, sz, sry }, idx) => (
+        <group key={idx}>
+          <mesh position={[sx, sy + platY, sz]} rotation={[0, sry, 0]} material={M.consT} castShadow>
+            <boxGeometry args={[1.0, 0.94, 0.62]} />
+          </mesh>
+          <mesh position={[sx, sy + 0.95 + platY, sz - 0.03]} rotation={[0.33, sry, 0]} material={M.scrD}>
+            <boxGeometry args={[0.85, 0.04, 0.46]} />
+          </mesh>
+          <mesh position={[sx, sy + 0.97 + platY, sz + 0.12]} material={M.acc2I}>
+            <boxGeometry args={[0.05, 0.05, 0.05]} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
+
+function AftStations() {
+  const platY = 0.13;
+  const bxOffsets = [-0.35, -0.15, 0.05, 0.25, 0.45];
+  return (
+    <group>
+      {([-2.4, 0, 2.4] as const).map((ax) => (
+        <group key={ax}>
+          <mesh position={[ax, 0.69 + platY, 1.65]} material={M.consA} castShadow receiveShadow>
+            <boxGeometry args={[1.4, 1.12, 0.52]} />
+          </mesh>
+          <mesh position={[ax, 1.04 + platY, 1.42]} rotation={[0.2, 0, 0]} material={M.scrA}>
+            <boxGeometry args={[1.2, 0.82, 0.05]} />
+          </mesh>
+          {bxOffsets.map((bx, i) => (
+            <mesh key={i} position={[ax + bx, 1.48 + platY, 1.43]} geometry={BTN_GEO_08} material={BTN100[i % 3]} />
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function TurboliftDoors() {
+  return (
+    <group>
+      {([-3.2, 3.2] as const).map((dx) => (
+        <group key={dx}>
+          <mesh position={[dx, 1.225, 2.38]} material={M.metDDr} castShadow>
+            <boxGeometry args={[1.45, 2.45, 0.24]} />
+          </mesh>
+          <mesh position={[dx - 0.33, 1.225, 2.32]} material={M.metalDr}>
+            <boxGeometry args={[0.62, 2.22, 0.09]} />
+          </mesh>
+          <mesh position={[dx + 0.33, 1.225, 2.32]} material={M.metalDr}>
+            <boxGeometry args={[0.62, 2.22, 0.09]} />
+          </mesh>
+          <mesh position={[dx, 2.6, 2.36]} material={M.acc1I}>
+            <boxGeometry args={[0.13, 0.065, 0.065]} />
+          </mesh>
+          <pointLight color={P.acc1} intensity={1.0} position={[dx, 2.65, 2.32]} distance={2.5} decay={2} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function WallPanels() {
+  const leftWPs:  [number, number, number][] = [[-6.88, 2.2, -3.5], [-6.88, 2.2, -1.0], [-6.88, 2.2, 1.5]];
+  const rightWPs: [number, number, number][] = [[ 6.88, 2.2, -3.5], [ 6.88, 2.2, -1.0], [ 6.88, 2.2, 1.5]];
+  const aftWPs:   [number, number, number][] = [[-2.5, 2.85, 2.42], [0, 2.85, 2.42], [2.5, 2.85, 2.42]];
+
+  return (
+    <group>
+      {leftWPs.map((wp, wi) => (
+        <group key={`l${wi}`}>
+          <mesh position={wp} material={M.wallP}>
+            <boxGeometry args={[0.13, 1.85, 1.45]} />
+          </mesh>
+          {Array.from({ length: 3 }, (_, py) =>
+            Array.from({ length: 4 }, (_, pz) => (
+              <mesh key={`${py}${pz}`} position={[wp[0] + 0.08, wp[1] - 0.6 + py * 0.46, wp[2] - 0.52 + pz * 0.34]} geometry={BTN_GEO_PL} material={PNL75[(py + pz) % 3]} />
+            ))
+          ).flat()}
+        </group>
+      ))}
+      {rightWPs.map((wp, wi) => (
+        <group key={`r${wi}`}>
+          <mesh position={wp} material={M.wallP}>
+            <boxGeometry args={[0.13, 1.85, 1.45]} />
+          </mesh>
+          {Array.from({ length: 3 }, (_, py) =>
+            Array.from({ length: 4 }, (_, pz) => (
+              <mesh key={`${py}${pz}`} position={[wp[0] - 0.08, wp[1] - 0.6 + py * 0.46, wp[2] - 0.52 + pz * 0.34]} geometry={BTN_GEO_PL} material={PNL75[(py + pz) % 3]} />
+            ))
+          ).flat()}
+        </group>
+      ))}
+      {aftWPs.map((ap, ai) => (
+        <group key={`a${ai}`}>
+          <mesh position={ap} material={M.wallP}>
+            <boxGeometry args={[1.65, 0.72, 0.11]} />
+          </mesh>
+          {Array.from({ length: 5 }, (_, pi) => (
+            <mesh key={pi} position={[ap[0] - 0.4 + pi * 0.2, ap[1] + 0.12, ap[2] + 0.1]} geometry={BTN_GEO_AF} material={AFT60[pi % 3]} />
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function DedicationPlaque() {
+  return (
+    <group>
+      <mesh position={[-6.58, 3.8, -2.0]} material={M.plq}>
+        <boxGeometry args={[1.22, 0.42, 0.07]} />
+      </mesh>
+      <mesh position={[-6.58, 3.90, -1.97]} material={M.plqL}>
+        <boxGeometry args={[0.92, 0.042, 0.04]} />
+      </mesh>
+      <mesh position={[-6.58, 3.78, -1.97]} material={M.plqL}>
+        <boxGeometry args={[0.72, 0.042, 0.04]} />
+      </mesh>
+      <mesh position={[-6.58, 3.66, -1.97]} material={M.plqL}>
+        <boxGeometry args={[0.52, 0.042, 0.04]} />
+      </mesh>
+      <pointLight color={P.acc1} intensity={1.2} position={[-6.2, 3.82, -1.82]} distance={2.0} decay={2} />
+    </group>
+  );
+}
+
+const FILL_POS: [number, number, number][] = [
+  [0, 5.5, -4.0], [0, 5.5, 0.5], [-4, 5.5, -2.0], [4, 5.5, -2.0], [0, 5.5, -1.5],
+];
 
 export function SpaceStation() {
   return (
     <>
-      <color attach="background" args={['#0c0e12']} />
-      <fog attach="fog" args={['#0c0e12', 9, 20]} />
+      <color attach="background" args={['#07090e']} />
+      <fogExp2 attach="fog" args={['#07090e', 0.038]} />
       <Environment preset="night" />
 
-      {/* TNG uses warm, even indirect lighting */}
-      <ambientLight intensity={0.58} color="#d4c8b0" />
+      <ambientLight intensity={1.8} color="#8898aa" />
       <directionalLight
-        position={[3, 7, 5]}
-        intensity={0.72}
-        color="#e8dfc8"
+        position={[3, 9, 5]}
+        intensity={1.2}
+        color="#d8e8f0"
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize={[2048, 2048]}
       />
-      <directionalLight position={[-4, 4, 2]} intensity={0.32} color="#c8c0a8" />
-      {/* Cove ceiling fill */}
-      <pointLight position={[0, 5.5, -2.5]} intensity={0.65} distance={9} color="#e8d8b0" />
-      <pointLight position={[-5.5, 5.5, -2.0]} intensity={0.35} distance={6} color="#ffd090" />
-      <pointLight position={[5.5, 5.5, -2.0]} intensity={0.35} distance={6} color="#ffd090" />
+      <directionalLight position={[-4, 3, 9]} intensity={0.42} color="#d8e8f0" />
 
-      <ContactShadows position={[0, 0.02, -2.1]} opacity={0.5} scale={11} blur={1.8} far={4.5} />
-
-      {/* ── Floor — TNG gray-taupe carpet ── */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[16, 12]} />
-        <meshToonMaterial color="#4a4540" />
-      </mesh>
-      {/* Aft platform — slightly raised section behind captain's area */}
-      <RoundedBox args={[15.0, 0.20, 3.4]} radius={0.06} smoothness={3} position={[0, 0.10, 1.1]}>
-        <meshToonMaterial color="#464240" />
-      </RoundedBox>
-      <RoundedBox args={[15.0, 0.06, 0.08]} radius={0.03} smoothness={3} position={[0, 0.03, -0.22]}>
-        <meshToonMaterial color="#5a5650" />
-      </RoundedBox>
-
-      {/* ── Back wall — viewscreen wall ── */}
-      <RoundedBox args={[15.5, 6.2, 0.5]} radius={0.28} smoothness={4} position={[0, 3.1, -6]} receiveShadow>
-        <meshToonMaterial color="#686058" />
-      </RoundedBox>
-      {/* Illuminated strips flanking viewscreen */}
-      {([-4.8, 4.8] as number[]).map((x) => (
-        <group key={x} position={[x, 3.1, -5.73]}>
-          <RoundedBox args={[0.09, 5.6, 0.05]} radius={0.03} smoothness={3}>
-            <meshToonMaterial color="#1c1a10" />
-          </RoundedBox>
-          <mesh>
-            <planeGeometry args={[0.04, 5.2]} />
-            <meshBasicMaterial color="#ffd080" transparent opacity={0.68} />
-          </mesh>
-          <pointLight intensity={0.28} distance={3.5} color="#ffd080" />
-        </group>
+      {FILL_POS.map(([x, y, z], i) => (
+        <pointLight key={i} color="#c8d8e8" intensity={4.0} position={[x, y, z]} distance={14} decay={1.5} />
       ))}
 
+      <Floor />
+      <Walls />
       <Viewscreen />
-
-      {/* ── Side walls — beige-taupe with illuminated strips ── */}
-      {([-7.2, 7.2] as number[]).map((x) => (
-        <RoundedBox key={x} args={[0.42, 6.2, 11.0]} radius={0.2} smoothness={4} position={[x, 3.1, -1.0]} receiveShadow>
-          <meshToonMaterial color="#686058" />
-        </RoundedBox>
-      ))}
-      {[-4.5, -2.8, -1.1, 0.6].map((z) => (
-        <WallStrip key={`L${z}`} position={[-7.0, 3.0, z]} rotation={[0, Math.PI / 2, 0]} />
-      ))}
-      {[-4.5, -2.8, -1.1, 0.6].map((z) => (
-        <WallStrip key={`R${z}`} position={[7.0, 3.0, z]} rotation={[0, -Math.PI / 2, 0]} />
-      ))}
-
-      {/* LCARS panels on side walls */}
-      <LCARSPanel position={[-6.85, 2.5, -3.2]} rotation={[0, Math.PI / 2, 0]} seed={3} />
-      <LCARSPanel position={[-6.85, 2.5, -1.0]} rotation={[0, Math.PI / 2, 0]} seed={7} />
-      <LCARSPanel position={[6.85, 2.5, -2.6]} rotation={[0, -Math.PI / 2, 0]} seed={11} />
-      <LCARSPanel position={[6.85, 2.5, -0.6]} rotation={[0, -Math.PI / 2, 0]} seed={15} />
-
-      {/* ── Aft wall — turbolift doors ── */}
-      <RoundedBox args={[15.5, 6.2, 0.45]} radius={0.28} smoothness={4} position={[0, 3.1, 2.5]} receiveShadow>
-        <meshToonMaterial color="#686058" />
-      </RoundedBox>
-      <TurboliftDoor position={[-3.2, 0, 2.25]} />
-      <TurboliftDoor position={[3.2, 0, 2.25]} />
-      {/* LCARS flanking turbolift doors */}
-      <LCARSPanel position={[-5.0, 2.2, 2.22]} seed={5} />
-      <LCARSPanel position={[2.0, 2.2, 2.22]} seed={9} />
-
-      {/* ── Ceiling — taupe with cove lighting ── */}
-      <RoundedBox args={[15.2, 0.5, 11.8]} radius={0.22} smoothness={4} position={[0, 6.15, -1.0]}>
-        <meshToonMaterial color="#5e5850" />
-      </RoundedBox>
-      {/* Cove strips along ceiling edges */}
-      {([-6.2, 6.2] as number[]).map((x) => (
-        <mesh key={x} position={[x, 5.9, -1.0]} rotation={[Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[10.0, 0.04]} />
-          <meshBasicMaterial color="#ffd080" transparent opacity={0.5} />
-        </mesh>
-      ))}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 5.9, -5.6]}>
-        <planeGeometry args={[14.0, 0.04]} />
-        <meshBasicMaterial color="#ffd080" transparent opacity={0.42} />
-      </mesh>
-
-      {/* ── User stations — CONN (x=-1.8) and OPS (x=0.9) ── */}
+      <Chair cx={0} cy={0} cz={-1} captain />
+      <Chair cx={-1.35} cy={0} cz={-0.88} captain={false} />
+      <Chair cx={1.35} cy={0} cz={-0.88} captain={false} />
       <ForwardConsole />
-
-      {/* ── Command area (between users and aft section) ── */}
       <CommandRail />
-      <CaptainChair position={[0, 0, -1.0]} />
-      <OfficerChair position={[-1.35, 0, -0.88]} />
-      <OfficerChair position={[1.35, 0, -0.88]} />
-
-      {/* ── Tactical console (Worf's station, on aft platform) ── */}
       <TacticalConsole />
-
-      {/* ── Aft stations (on raised platform, against aft wall) ── */}
       <AftStations />
-
-      {/* ── Ship dedication plaque ── */}
-      <group position={[-6.6, 3.8, -2.0]} rotation={[0, Math.PI / 2, 0]}>
-        <RoundedBox args={[1.6, 0.42, 0.05]} radius={0.06} smoothness={3}>
-          <meshToonMaterial color="#0a0a08" />
-        </RoundedBox>
-        <Text
-          position={[0, 0.05, 0.04]}
-          fontSize={0.14}
-          color={L.orange}
-          anchorX="center"
-          anchorY="middle"
-          letterSpacing={0.1}
-        >
-          U.S.S. FOCUS
-        </Text>
-        <Text
-          position={[0, -0.10, 0.04]}
-          fontSize={0.09}
-          color={L.yellow}
-          anchorX="center"
-          anchorY="middle"
-          letterSpacing={0.06}
-        >
-          NCC-1701-F
-        </Text>
-        <pointLight position={[0, 0, 0.1]} intensity={0.18} distance={2.0} color={L.orange} />
-      </group>
+      <TurboliftDoors />
+      <WallPanels />
+      <DedicationPlaque />
     </>
   );
 }

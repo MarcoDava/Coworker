@@ -1,6 +1,6 @@
 # Coworker
 
-A virtual co-working app where you and a friend lock in to a shared 3D workspace — each seated at a desk, each with a live view of the other's real desktop streamed onto an in-world laptop.
+Body-doubling for the internet. You and a friend lock into a shared 3D workspace — each seated at a desk, each with a live view of the other's real desktop. The app watches what you're working on and keeps score. No hiding.
 
 ## Download
 
@@ -9,6 +9,10 @@ A virtual co-working app where you and a friend lock in to a shared 3D workspace
 Run the installer (`Coworker Setup x.x.x.exe`) — no extra setup needed.
 
 > macOS and Linux builds coming soon.
+
+## Why it works
+
+Most remote setups give you presence without accountability. Coworker flips that: you can see your friend's screen, the app knows if you're off-task, and every session ends with a score. The ambient pressure of someone watching — without a meeting scheduled — is what gets you to actually sit down and work.
 
 ## How it works
 
@@ -19,6 +23,10 @@ Run the installer (`Coworker Setup x.x.x.exe`) — no extra setup needed.
 - **Idle penalty**: if no keyboard/mouse input for 2+ minutes, you silently lose points
 - **Discord Rich Presence**: shows session status in your Discord profile
 
+## Avatars
+
+Customize your character's body color, skin tone, hair, eyes, and chair. Unlockable skin presets let you set a look for your workspace.
+
 ## Environments
 
 Switch in the Options panel during a session:
@@ -27,7 +35,7 @@ Switch in the Options panel during a session:
 |-------------|-------------|
 | Library | Warm daytime room with bookshelves and a reading rug |
 | Space Station | Sci-fi interior with porthole windows and a maintenance bot |
-| Train | Scenic ride with passing buildings outside the windows |
+| Night Train | Scenic night ride with passing city lights outside the windows |
 | Skyscraper | Night cityscape with a panoramic window and animated city below the moon |
 
 ## Stack

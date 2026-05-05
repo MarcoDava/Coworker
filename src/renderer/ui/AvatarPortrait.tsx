@@ -18,7 +18,7 @@ export function AvatarPortrait({ appearance = DEFAULT_APPEARANCE, height = 130 }
         <group position={[0, -1.22, 0]}>
           <Avatar
             position={[0, 0, 0]}
-            rotationY={Math.PI}
+            rotationY={0}
             color={appearance.bodyColor}
             skinColor={appearance.skinTone}
             hairColor={appearance.hairColor}

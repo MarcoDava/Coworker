@@ -3,63 +3,50 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { NPC_SCALE } from './CharacterParts';
+import { Bldg3D, genBuildings, pr } from './CityBuildings';
 
-// ─── Scrolling city backdrop ─────────────────────────────────────────────────
-
-function ScrollingCityStrip({ D, W, H }: { D: number; W: number; H: number }) {
+function CityLayer({ layer, D, W, H, speed, zOff, opacity }: {
+  layer: 'far' | 'mid' | 'near';
+  D: number; W: number; H: number;
+  speed: number; zOff: number; opacity: number;
+}) {
   const STRIP = W * 2.8;
-  const Z = -D * 0.43;
   const groupRef = useRef<THREE.Group>(null);
-
-  const buildings = useMemo(() => {
-    const count = Math.max(50, Math.floor(W * 7.5));
-    return Array.from({ length: count }, (_, i) => {
-      const bw = 0.18 + ((i * 17 + 3) % 7) * 0.038;
-      const bh = 0.26 + ((i * 29 + 7) % 11) * 0.072;
-      const x = (i / count) * STRIP;
-      const yCenter = -H / 2 + bh / 2;
-      const roof = i % 4 === 0 ? 'cap' : 'flat';
-      const glowRows = Math.max(3, Math.floor(bh / 0.12));
-      return { x, bw, bh, yCenter, roof, glowRows };
-    });
-  }, [W, H, STRIP]);
+  const count = layer === 'far' ? 38 : layer === 'mid' ? 26 : 18;
+  const buildings = useMemo(() => genBuildings(count, STRIP, layer), [count, STRIP, layer]);
+  const seedBase = layer === 'far' ? 0 : layer === 'mid' ? 1000 : 2000;
 
   useFrame((_, dt) => {
     const g = groupRef.current;
     if (!g) return;
-    g.position.x -= 0.28 * dt;
+    g.position.x -= speed * dt;
     if (g.position.x < -STRIP) g.position.x += STRIP;
   });
 
   return (
     <group ref={groupRef}>
-      <mesh position={[0, -H * 0.30, Z - 0.003]}>
-        <planeGeometry args={[STRIP * 2.2, 0.12]} />
-        <meshBasicMaterial color="#101827" transparent opacity={0.78} />
-      </mesh>
       {([0, STRIP] as number[]).map((offset) =>
         buildings.map((b, i) => (
-          <group key={`${offset}-${i}`} position={[b.x + offset - W * 0.8, b.yCenter, Z]}>
-            <mesh>
-              <boxGeometry args={[b.bw, b.bh, 0.001]} />
-              <meshBasicMaterial color={i % 3 === 0 ? '#172033' : i % 3 === 1 ? '#1d2638' : '#111927'} />
-            </mesh>
-            {b.roof === 'cap' && (
-              <mesh position={[0, b.bh / 2 + 0.025, 0.001]}>
-                <boxGeometry args={[b.bw * 1.12, 0.05, 0.001]} />
-                <meshBasicMaterial color="#242c3c" />
-              </mesh>
-            )}
-            {Array.from({ length: b.glowRows }, (_, j) => (
-              <mesh key={j} position={[0, -b.bh / 2 + 0.10 + j * 0.15, 0.002]}>
-                <planeGeometry args={[b.bw * 0.62, 0.018]} />
-                <meshBasicMaterial color={j % 2 === 0 ? '#f1b35c' : '#83aee8'} transparent opacity={0.58} />
-              </mesh>
-            ))}
+          <group key={`${offset}-${i}`} position={[b.x + offset - W * 0.8, -H / 2 + b.h / 2, -D * zOff]}>
+            <Bldg3D b={b} seed={seedBase + i * 7} opacity={opacity} />
           </group>
         ))
       )}
     </group>
+  );
+}
+
+function CityLayers({ D, W, H }: { D: number; W: number; H: number }) {
+  return (
+    <>
+      <CityLayer layer="far"  D={D} W={W} H={H} speed={0.14} zOff={0.52} opacity={0.70} />
+      <CityLayer layer="mid"  D={D} W={W} H={H} speed={0.22} zOff={0.47} opacity={1.00} />
+      <CityLayer layer="near" D={D} W={W} H={H} speed={0.36} zOff={0.43} opacity={1.00} />
+      <mesh position={[0, -H * 0.44, -D * 0.42]}>
+        <planeGeometry args={[W * 6.0, H * 0.10]} />
+        <meshBasicMaterial color="#ff8c40" transparent opacity={0.12} />
+      </mesh>
+    </>
   );
 }
 
@@ -77,38 +64,63 @@ function TrainWindow({ position, rotation, width = 1.1, height = 0.88, struts = 
   const WALL_LAYER = 0.95;
   const WALL_LAYER_Z = -D * 0.24;
 
+  const skyGeo = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(W, H, 1, 8);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    const top = new THREE.Color('#0a1428');
+    const mid = new THREE.Color('#1a1a3a');
+    const low = new THREE.Color('#2a1838');
+    const cols: number[] = [];
+    for (let i = 0; i < pos.count; i++) {
+      const t = (pos.getY(i) + H / 2) / H;
+      const c = t > 0.5
+        ? new THREE.Color().lerpColors(mid, top, (t - 0.5) * 2)
+        : new THREE.Color().lerpColors(low, mid, t * 2);
+      cols.push(c.r, c.g, c.b);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(cols), 3));
+    return geo;
+  }, [W, H]);
+
   const stars = useMemo(() =>
-    Array.from({ length: Math.min(28, Math.max(10, Math.floor(W * 2.2))) }, (_, i) => ({
-      x: -W * 0.43 + (((i * 41 + 3) % 100) / 100) * W * 0.86,
-      y: -H * 0.10 + (((i * 31 + 7) % 100) / 100) * H * 0.48,
-      r: 0.006 + ((i * 13) % 3) * 0.003,
+    Array.from({ length: 90 }, (_, i) => ({
+      x: -W * 0.48 + pr(i * 5 + 1) * W * 0.96,
+      y:  H * 0.04 + pr(i * 5 + 2) * H * 0.42,
+      r: 0.004 + pr(i * 5 + 3) * 0.006,
+      bright: pr(i * 5 + 4) > 0.65,
     })), [W, H]);
 
   return (
     <group position={position} rotation={rotation}>
-      <mesh position={[0, 0, -D * 0.55]}>
-        <planeGeometry args={[W, H]} />
-        <meshBasicMaterial color="#07101e" />
+      <mesh position={[0, 0, -D * 0.56]} geometry={skyGeo}>
+        <meshBasicMaterial vertexColors />
       </mesh>
       {stars.map((s, i) => (
-        <mesh key={i} position={[s.x, s.y, -D * 0.5]}>
-          <circleGeometry args={[s.r, 6]} />
-          <meshBasicMaterial color="#d0dcff" />
+        <mesh key={i} position={[s.x, s.y, -D * 0.54]}>
+          <circleGeometry args={[s.r, s.bright ? 6 : 4]} />
+          <meshBasicMaterial color={s.bright ? '#e8d9b7' : '#8ba8c8'} />
         </mesh>
       ))}
       {showMoon && (
         <>
-          <mesh position={[W * 0.24, H * 0.23, -D * 0.48]}>
-            <circleGeometry args={[0.08, 12]} />
-            <meshBasicMaterial color="#dde8b0" />
+          {/* Moon glow */}
+          <mesh position={[-W * 0.20, H * 0.25, -D * 0.535]}>
+            <circleGeometry args={[0.14, 16]} />
+            <meshBasicMaterial color="#f4ecc4" transparent opacity={0.08} />
           </mesh>
-          <mesh position={[-W * 0.16, -H * 0.32, -D * 0.46]}>
-            <circleGeometry args={[0.25, 12]} />
-            <meshBasicMaterial color="#0a0f08" />
+          {/* Moon disc */}
+          <mesh position={[-W * 0.20, H * 0.25, -D * 0.53]}>
+            <circleGeometry args={[0.08, 16]} />
+            <meshBasicMaterial color="#f4ecc4" />
+          </mesh>
+          {/* Crescent shadow */}
+          <mesh position={[-W * 0.20 + 0.038, H * 0.25 + 0.022, -D * 0.52]}>
+            <circleGeometry args={[0.068, 16]} />
+            <meshBasicMaterial color="#1a1a3a" />
           </mesh>
         </>
       )}
-      <ScrollingCityStrip D={D} W={W} H={H} />
+      <CityLayers D={D} W={W} H={H} />
       {([-1, 1] as number[]).map((side) => (
         <mesh key={`side-${side}`} position={[side * (W / 2 + WALL_LAYER / 2), 0, WALL_LAYER_Z]}>
           <planeGeometry args={[WALL_LAYER, H + F * 3]} />
@@ -296,7 +308,6 @@ function LBar() {
   const retX = rightEdge - RW / 2;
 
   // Bar stool z - customer side after the 180 degree rotation.
-  const stoolZ = MZ - D / 2 - 0.55;
 
   return (
     <group>
@@ -679,7 +690,8 @@ function ConductorNPC({ conductorRef }: { conductorRef: React.RefObject<THREE.Gr
 
     if (lanternRef.current) {
       lanternRef.current.rotation.z = stride * 0.20;
-      lanternRef.current.position.y = 0.55 + Math.abs(stride) * 0.018;
+      lanternRef.current.position.y = 0.35 +Math.abs(stride) * 0.018;
+      lanternRef.current.position.z =  Math.sin(t * CONDUCTOR_WALK_FREQ) * 0.05;
     }
   });
 
@@ -730,7 +742,7 @@ function ConductorNPC({ conductorRef }: { conductorRef: React.RefObject<THREE.Gr
             <sphereGeometry args={[0.052, 10, 10]} />
             <meshToonMaterial color="#d8aa80" />
           </mesh>
-          <RoundedBox args={[0.13, 0.055, 0.035]} radius={0.016} smoothness={3} position={[-0.08, -0.21, 0.08]} rotation={[0, 0, -0.25]}>
+          <RoundedBox args={[0.13, 0.055, 0.035]} radius={0.016} smoothness={3} position={[-0.08, -0.21, 0.04]} rotation={[0, 0, -0.25]}>
             <meshToonMaterial color="#d9c3a0" />
           </RoundedBox>
         </group>
@@ -744,7 +756,7 @@ function ConductorNPC({ conductorRef }: { conductorRef: React.RefObject<THREE.Gr
             <meshToonMaterial color="#d8aa80" />
           </mesh>
         </group>
-        <group ref={lanternRef} position={[0.33, 0.55, 0.14]}>
+        <group ref={lanternRef} position={[0.19, 0, 0]}>
           <mesh position={[0, 0.12, 0]}>
             <torusGeometry args={[0.055, 0.008, 5, 12, Math.PI]} />
             <meshToonMaterial color="#4a3420" />
@@ -940,23 +952,27 @@ export function Train() {
           <BoothSet key={z} z={z} />
         ))}
 
-        {/* ── Avatar work table — spans both laptop positions (x=-1.8, x=0.9 at z=-2) ── */}
-        <RoundedBox args={[3.4, 0.06, 0.88]} radius={0.04} smoothness={3}
-          position={[-0.45, 0.81, -1.85]} castShadow receiveShadow>
-          <meshToonMaterial color="#b06420" />
-        </RoundedBox>
-        <RoundedBox args={[3.28, 0.07, 0.76]} radius={0.03} smoothness={3}
-          position={[-0.45, 0.745, -1.85]}>
-          <meshToonMaterial color="#4a2e16" />
-        </RoundedBox>
-        {([-1.54, 1.54] as number[]).map((dx) =>
-          ([-0.36, 0.36] as number[]).map((dz) => (
-            <mesh key={`${dx}-${dz}`} position={[-0.45 + dx, 0.365, -1.85 + dz]} castShadow>
-              <cylinderGeometry args={[0.022, 0.026, 0.73, 6]} />
-              <meshToonMaterial color="#3a1e0a" />
-            </mesh>
-          ))
-        )}
+        {/* ── Work tables — P1&P2 at z=-2, P3&P4 at z=-0.7 ── */}
+        {([-2.85, -0.5] as number[]).map((tz) => (
+          <group key={tz}>
+            <RoundedBox args={[3.4, 0.06, 0.88]} radius={0.04} smoothness={3}
+              position={[-0.45, 0.81, tz]} castShadow receiveShadow>
+              <meshToonMaterial color="#b06420" />
+            </RoundedBox>
+            <RoundedBox args={[3.28, 0.07, 0.76]} radius={0.03} smoothness={3}
+              position={[-0.45, 0.745, tz]}>
+              <meshToonMaterial color="#4a2e16" />
+            </RoundedBox>
+            {([-1.54, 1.54] as number[]).map((dx) =>
+              ([-0.36, 0.36] as number[]).map((dz) => (
+                <mesh key={`${dx}-${dz}`} position={[-0.45 + dx, 0.365, tz + dz]} castShadow>
+                  <cylinderGeometry args={[0.022, 0.026, 0.73, 6]} />
+                  <meshToonMaterial color="#3a1e0a" />
+                </mesh>
+              ))
+            )}
+          </group>
+        ))}
 
         {/* ── Seated NPC passengers ── */}
         {/* Bench NPCs — positioned at seat surface y≈0.28, facing −X toward table */}

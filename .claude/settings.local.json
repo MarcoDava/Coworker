@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Skill(schedule)"
+      "Skill(schedule)",
+      "PowerShell(cd \"C:\\\\Users\\\\marco\\\\Desktop\\\\coworker\"; npx tsc --noEmit 2>&1; Write-Host \"Exit: $LASTEXITCODE\")"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "claude-flow"
+  ]
 }
