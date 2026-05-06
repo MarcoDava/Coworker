@@ -53,6 +53,13 @@ const api = {
       return () => ipcRenderer.off('hotkey:peek', listener);
     },
   },
+  global: {
+    onKeyActivity: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('global:keyActivity', listener);
+      return () => ipcRenderer.off('global:keyActivity', listener);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('coworker', api);

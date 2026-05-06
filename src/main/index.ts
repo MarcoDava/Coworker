@@ -2,6 +2,7 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, powerMonitor, session, gl
 import { join } from 'path';
 import { startActiveWindowPolling, stopActiveWindowPolling } from './activeWindow';
 import { initRichPresence, updateRichPresence, destroyRichPresence } from './rpc';
+import { uIOhook, UiohookKey } from 'uiohook-napi';
 
 let mainWindow: BrowserWindow | null = null;
 let screenModeActive = false;
@@ -28,6 +29,32 @@ function registerScreenModeShortcuts() {
   });
 }
 
+let globalKeyHookActive = false;
+
+function startGlobalKeyHook() {
+  if (globalKeyHookActive) return;
+  globalKeyHookActive = true;
+  uIOhook.on('keydown', (e) => {
+    // Ignore modifier-only keydowns to reduce noise
+    const modifierKeys: number[] = [
+      UiohookKey.Shift, UiohookKey.ShiftRight,
+      UiohookKey.Alt, UiohookKey.AltRight,
+      UiohookKey.Ctrl, UiohookKey.CtrlRight,
+      UiohookKey.Meta, UiohookKey.MetaRight,
+    ];
+    if (modifierKeys.includes(e.keycode)) return;
+    mainWindow?.webContents.send('global:keyActivity');
+  });
+  uIOhook.start();
+}
+
+function stopGlobalKeyHook() {
+  if (!globalKeyHookActive) return;
+  globalKeyHookActive = false;
+  uIOhook.removeAllListeners('keydown');
+  uIOhook.stop();
+}
+
 function setScreenMode(active: boolean) {
   if (!mainWindow) return;
   screenModeActive = active;
@@ -39,6 +66,7 @@ function setScreenMode(active: boolean) {
     mainWindow.setIgnoreMouseEvents(true, { forward: true });
     mainWindow.setFocusable(false);
     mainWindow.blur();
+    startGlobalKeyHook();
   } else {
     unregisterScreenModeShortcuts();
     mainWindow.setIgnoreMouseEvents(false);
@@ -46,6 +74,7 @@ function setScreenMode(active: boolean) {
     mainWindow.setVisibleOnAllWorkspaces(false);
     mainWindow.setFocusable(true);
     mainWindow.focus();
+    stopGlobalKeyHook();
   }
 }
 
@@ -129,6 +158,7 @@ app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
   globalShortcut.unregisterAll();
+  stopGlobalKeyHook();
   stopActiveWindowPolling();
   destroyRichPresence();
   if (process.platform !== 'darwin') app.quit();

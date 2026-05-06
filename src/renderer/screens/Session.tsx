@@ -257,8 +257,10 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       timeout = setTimeout(() => setSelfTyping(false), 700);
     };
     window.addEventListener('keydown', onKey);
+    const offGlobal = window.coworker?.global?.onKeyActivity(onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
+      offGlobal?.();
       clearTimeout(timeout);
     };
   }, []);

@@ -11,7 +11,11 @@ files:
   - out/**/*
   - node_modules/active-win/**/*
   - node_modules/discord-rpc/**/*
+  - node_modules/uiohook-napi/**/*
   - "!**/*.map"
+
+asarUnpack:
+  - node_modules/uiohook-napi/**/*
 
 win:
   target:
