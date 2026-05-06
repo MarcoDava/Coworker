@@ -7,7 +7,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: resolve(__dirname, 'src/main/index.ts'),
-        external: ['active-win', 'discord-rpc'],
+        external: ['active-win', 'discord-rpc', 'uiohook-napi'],
       },
     },
   },
