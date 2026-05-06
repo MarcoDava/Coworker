@@ -1,6 +1,7 @@
 appId: com.coworker.app
 productName: Coworker
 copyright: Copyright © 2025 Marco Dava
+publish: never
 
 directories:
   buildResources: resources
