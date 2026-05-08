@@ -28,36 +28,27 @@ const api = {
   window: {
     setScreenMode: (active: boolean): Promise<{ active: boolean }> =>
       ipcRenderer.invoke('window:setScreenMode', active),
-    onScreenModeEscape: (cb: () => void) => {
-      const listener = () => cb();
-      ipcRenderer.on('window:screenModeEscape', listener);
-      return () => ipcRenderer.off('window:screenModeEscape', listener);
-    },
     onScreenModeToggleHud: (cb: () => void) => {
-      const listener = () => cb();
-      ipcRenderer.on('window:screenModeToggleHud', listener);
-      return () => ipcRenderer.off('window:screenModeToggleHud', listener);
+      ipcRenderer.on('window:screenModeToggleHud', cb);
+      return () => ipcRenderer.off('window:screenModeToggleHud', cb);
     },
     onToggleMode: (cb: () => void) => {
-      const listener = () => cb();
-      ipcRenderer.on('window:toggleMode', listener);
-      return () => ipcRenderer.off('window:toggleMode', listener);
+      ipcRenderer.on('window:toggleMode', cb);
+      return () => ipcRenderer.off('window:toggleMode', cb);
     },
   },
   hotkey: {
     registerPeek: (accelerator: string): Promise<boolean> =>
       ipcRenderer.invoke('hotkey:registerPeek', accelerator),
     onPeek: (cb: () => void) => {
-      const listener = () => cb();
-      ipcRenderer.on('hotkey:peek', listener);
-      return () => ipcRenderer.off('hotkey:peek', listener);
+      ipcRenderer.on('hotkey:peek', cb);
+      return () => ipcRenderer.off('hotkey:peek', cb);
     },
   },
   global: {
     onKeyActivity: (cb: () => void) => {
-      const listener = () => cb();
-      ipcRenderer.on('global:keyActivity', listener);
-      return () => ipcRenderer.off('global:keyActivity', listener);
+      ipcRenderer.on('global:keyActivity', cb);
+      return () => ipcRenderer.off('global:keyActivity', cb);
     },
   },
 };

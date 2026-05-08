@@ -79,7 +79,17 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const peerRef = useRef<PeerConnection | null>(null);
   const screenModeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const store = useScoreStore();
+  const selfMouseRef = useRef({ nx: 0.5, ny: 0.5, active: false });
+  const peerMouseRef = useRef({ nx: 0.5, ny: 0.5, active: false });
+  const peerMouseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPaused = useScoreStore((s) => s.isPaused);
+  const pausedByPeer = useScoreStore((s) => s.pausedByPeer);
+  const selfPausesUsed = useScoreStore((s) => s.selfPausesUsed);
+  const pauseCap = useScoreStore((s) => s.pauseCap);
+  const pauseDurationSec = useScoreStore((s) => s.pauseDurationSec);
+  const appList = useScoreStore((s) => s.appList);
+  const applyDelta = useScoreStore((s) => s.applyDelta);
+  const markPause = useScoreStore((s) => s.markPause);
   const selfSlot = cfg.role === 'host' ? HOST_SLOT : GUEST_SLOT;
   const peerSlot = cfg.role === 'host' ? GUEST_SLOT : HOST_SLOT;
   const layout = SEAT_LAYOUTS[sceneEnv];
@@ -173,12 +183,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           setTimeout(onFinish, 500);
           return 0;
         }
-        return store.isPaused ? seconds : seconds - 1;
+        return isPaused ? seconds : seconds - 1;
       });
     }, 1000);
 
     return () => clearInterval(id);
-  }, [onFinish, store.isPaused]);
+  }, [onFinish, isPaused]);
 
   useEffect(() => {
     const api = window.coworker;
@@ -201,32 +211,26 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     if (!api) return;
 
     const id = setInterval(async () => {
-      if (store.isPaused) return;
+      if (isPaused) return;
       const idle = await api.system.idleTime();
       peerRef.current?.send({ type: 'idle', idleSeconds: idle });
     }, 5000);
 
     return () => clearInterval(id);
-  }, [store.isPaused]);
+  }, [isPaused]);
 
   useEffect(() => {
-    if (peerIdleSec > IDLE_THRESHOLD_SEC && !store.pausedByPeer) {
-      store.applyDelta(SCORING.idleTick * -1, SCORING.idleTick, 'peer idle');
+    if (peerIdleSec > IDLE_THRESHOLD_SEC && !pausedByPeer) {
+      applyDelta(-SCORING.idleTick, SCORING.idleTick, 'peer idle');
       peerRef.current?.send({ type: 'scoreDelta', self: SCORING.idleTick, peer: 0, note: 'idle' });
     }
-  }, [peerIdleSec, store]);
+  }, [peerIdleSec, pausedByPeer, applyDelta]);
 
 
   useEffect(() => {
     const api = window.coworker;
     if (!api) return;
 
-    const offEscape = api.window.onScreenModeEscape(() => {
-      screenModeRef.current = false;
-      setScreenMode(false);
-      setScreenHudVisible(true);
-      void api.window.setScreenMode(false);
-    });
     const offHud = api.window.onScreenModeToggleHud(() => {
       setScreenHudVisible((visible) => !visible);
     });
@@ -234,7 +238,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       void setScreenModeActive(!screenModeRef.current);
     });
     return () => {
-      offEscape();
       offHud();
       offToggle();
       void api.window.setScreenMode(false);
@@ -270,6 +273,30 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   }, [selfTyping]);
 
   useEffect(() => {
+    let selfMouseTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastSend = 0;
+    const onMouseMove = (e: MouseEvent) => {
+      const nx = e.clientX / window.innerWidth;
+      const ny = e.clientY / window.innerHeight;
+      selfMouseRef.current.nx = nx;
+      selfMouseRef.current.ny = ny;
+      selfMouseRef.current.active = true;
+      if (selfMouseTimeout) clearTimeout(selfMouseTimeout);
+      selfMouseTimeout = setTimeout(() => { selfMouseRef.current.active = false; }, 1500);
+      const now = Date.now();
+      if (now - lastSend > 66) {
+        lastSend = now;
+        peerRef.current?.send({ type: 'mouseMove', nx, ny });
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      if (selfMouseTimeout) clearTimeout(selfMouseTimeout);
+    };
+  }, []);
+
+  useEffect(() => {
     const audio = new Audio();
     audio.src = 'https://stream.zeno.fm/f3wvbbqmdg8uv';
     audio.loop = true;
@@ -290,6 +317,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         if (screenMode) {
@@ -384,25 +413,32 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     }
     if (message.type === 'reasonResolve') {
       if (message.accepted) {
-        store.applyDelta(SCORING.unjustCalloutAccepted, -SCORING.unjustCalloutAccepted, 'reason accepted');
+        applyDelta(SCORING.unjustCalloutAccepted, -SCORING.unjustCalloutAccepted, 'reason accepted');
       } else {
-        store.applyDelta(SCORING.unjustCalloutRejected, 0, 'reason rejected');
+        applyDelta(SCORING.unjustCalloutRejected, 0, 'reason rejected');
       }
       return;
     }
     if (message.type === 'pauseStart') {
-      store.markPause('peer', true);
+      markPause('peer', true);
       return;
     }
     if (message.type === 'pauseEnd') {
-      store.markPause('peer', false);
+      markPause('peer', false);
       return;
     }
     if (message.type === 'scoreDelta') {
-      store.applyDelta(message.peer, message.self, message.note);
+      applyDelta(message.peer, message.self, message.note);
     }
     if (message.type === 'typing') {
       setPeerTyping(message.isTyping);
+    }
+    if (message.type === 'mouseMove') {
+      peerMouseRef.current.nx = message.nx;
+      peerMouseRef.current.ny = message.ny;
+      peerMouseRef.current.active = true;
+      if (peerMouseTimeout.current) clearTimeout(peerMouseTimeout.current);
+      peerMouseTimeout.current = setTimeout(() => { peerMouseRef.current.active = false; }, 1500);
     }
   }
 
@@ -424,9 +460,9 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         const targetApp = peerActiveWindow?.app ?? 'unknown';
         peerRef.current?.send({ type: 'callout', targetApp, ts: Date.now() });
 
-        const valid = isSlacking(peerActiveWindow, store.appList);
+        const valid = isSlacking(peerActiveWindow, appList);
         if (valid) {
-          store.applyDelta(SCORING.validCallout, -SCORING.validCallout, `called out ${targetApp}`);
+          applyDelta(SCORING.validCallout, -SCORING.validCallout, `called out ${targetApp}`);
           peerRef.current?.send({
             type: 'scoreDelta',
             self: -SCORING.validCallout,
@@ -445,28 +481,28 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       onPause: () => {
         if (menuOpen || screenMode) return;
 
-        if (store.isPaused) {
-          store.markPause('self', false);
+        if (isPaused) {
+          markPause('self', false);
           peerRef.current?.send({ type: 'pauseEnd' });
           return;
         }
 
-        if (store.selfPausesUsed >= store.pauseCap) return;
-        store.markPause('self', true);
-        peerRef.current?.send({ type: 'pauseStart', remainingSec: store.pauseDurationSec });
+        if (selfPausesUsed >= pauseCap) return;
+        markPause('self', true);
+        peerRef.current?.send({ type: 'pauseStart', remainingSec: pauseDurationSec });
       },
     }
   );
 
   const hudHint = useMemo(() => {
     if (screenMode) return 'screen mode active · Esc exits · Ctrl+Shift+H toggles overlay';
-    if (store.isPaused) return 'paused - press P again to resume';
+    if (isPaused) return 'paused - press P again to resume';
     if (cameraMode === 'firstPerson') {
       return `hold ${lookModifier} and drag to look around · V to switch view · M for work mode`;
     }
     if (peeking) return 'peeking - press SPACE to call out';
     return `hold ${lookModifier} + drag to look · Tab to peek · V switch view · M work mode`;
-  }, [cameraMode, lookModifier, peeking, screenMode, store.isPaused]);
+  }, [cameraMode, lookModifier, peeking, screenMode, isPaused]);
 
   const quitReady = quitText.trim().toLowerCase() === QUIT_PHRASE;
 
@@ -528,12 +564,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           position={selfLaptop}
           rotationY={0}
           stream={localStream}
-          paused={store.isPaused}
+          paused={isPaused}
           label="you"
           onDoubleClick={() => void setScreenModeActive(true)}
         />
         {cfg.playerCount > 1 && !peerLeft && (
-          <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={store.pausedByPeer} label="friend" />
+          <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={pausedByPeer} label="friend" />
         )}
         {cameraMode !== 'firstPerson' && (
           <Avatar
@@ -547,6 +583,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             isTyping={selfTyping}
             focused={screenMode}
             lookRef={freeLookRef}
+            mouseRef={selfMouseRef}
           />
         )}
         {cfg.playerCount > 1 && (
@@ -561,6 +598,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
             isTyping={peerTyping}
             trackCamera
+            mouseRef={peerMouseRef}
           />
         )}
         <CameraRig
@@ -626,7 +664,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
 
       {!screenMode && peeking && <div style={pillStyle}>peeking - press SPACE to call out</div>}
 
-      {(!screenMode || screenHudVisible) && store.isPaused && (
+      {(!screenMode || screenHudVisible) && isPaused && (
         <div
           style={{
             ...pillStyle,
@@ -751,7 +789,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             setPendingReasonUi(null);
           }}
           onTimeout={() => {
-            store.applyDelta(SCORING.unjustNoReason, 0, 'no reason given');
+            applyDelta(SCORING.unjustNoReason, 0, 'no reason given');
             peerRef.current?.send({
               type: 'scoreDelta',
               self: -SCORING.unjustNoReason,

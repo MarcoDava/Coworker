@@ -1,10 +1,15 @@
 import { RoundedBox } from '@react-three/drei';
+import type { MutableRefObject } from 'react';
+import type * as THREE from 'three';
 
 export const NPC_SCALE = 1.6;
 
-export function Eye({ x, eyeColor, opacity, depthWrite }: { x: number; eyeColor: string; opacity: number; depthWrite: boolean }) {
+export function Eye({ x, eyeColor, opacity, depthWrite, groupRef }: {
+  x: number; eyeColor: string; opacity: number; depthWrite: boolean;
+  groupRef?: MutableRefObject<THREE.Group | null>;
+}) {
   return (
-    <group position={[x, 0.095, 0.285]}>
+    <group ref={groupRef} position={[x, 0.095, 0.285]}>
       <mesh scale={[0.78, 1.18, 0.22]} rotation={[0.08, 0, 0]} castShadow>
         <sphereGeometry args={[0.075, 18, 18]} />
         <meshBasicMaterial color="#fff7ed" transparent opacity={opacity} depthWrite={depthWrite} />

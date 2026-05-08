@@ -86,7 +86,7 @@ export function Skyscraper() {
       <directionalLight position={[-6, 4, 2]} intensity={0.2} color="#3355aa" />
       <directionalLight position={[0, 6, 8]} intensity={0.18} color="#7090cc" />
 
-      <ContactShadows position={[0, 0.02, -2.1]} opacity={0.38} scale={11} blur={1.8} far={4.5} />
+      <ContactShadows position={[0, 0.02, -1.6]} opacity={0.38} scale={11} blur={1.8} far={4.5} />
 
       {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -215,7 +215,7 @@ export function Skyscraper() {
       </group>
 
       {/* Pendant lights above each desk row — professional cool-white fill */}
-      {([-3.8, 0.1] as number[]).map((dz) =>
+      {([-3.3, 0.1] as number[]).map((dz) =>
         ([-2.2, 0, 2.2] as number[]).map((dx) => (
           <PendantLight key={`pend-${dz}-${dx}`} position={[dx, 4.6, dz]} />
         ))
@@ -239,8 +239,8 @@ export function Skyscraper() {
         </group>
       ))}
 
-      {/* Desks — P1&P2 at z=-3.8 (rear), P3&P4 at z=0.1 (front) — matches Library spacing */}
-      {([-3.8, 0.1] as number[]).map((dz) => (
+      {/* Desks — P1&P2 at z=-3.3 (rear), P3&P4 at z=0.1 (front) */}
+      {([-3.3, 0.1] as number[]).map((dz) => (
         <group key={dz}>
           <RoundedBox args={[6.3, 0.14, 1.75]} radius={0.12} smoothness={4} position={[0, 0.73, dz]} castShadow receiveShadow>
             <meshToonMaterial color="#131c30" />

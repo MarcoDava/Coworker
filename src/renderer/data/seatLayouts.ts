@@ -28,8 +28,8 @@ export const SEAT_LAYOUTS: Record<SceneEnv, [SeatSlot, SeatSlot, SeatSlot, SeatS
     { laptop: [0.9,  0, -0.5],  avatarZOffset: 0.8 }, // P4 — front table
   ],
   skyscraper: [
-    { laptop: [-1.8, 0, -3.8], avatarZOffset: 0.8 }, // P1 — rear desk
-    { laptop: [0.9,  0, -3.8], avatarZOffset: 0.8 }, // P2 — rear desk
+    { laptop: [-1.8, 0, -3.3], avatarZOffset: 0.8 }, // P1 — rear desk
+    { laptop: [0.9,  0, -3.3], avatarZOffset: 0.8 }, // P2 — rear desk
     { laptop: [-1.8, 0,  0.1], avatarZOffset: 0.8 }, // P3 — front desk
     { laptop: [0.9,  0,  0.1], avatarZOffset: 0.8 }, // P4 — front desk
   ],

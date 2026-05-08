@@ -11,6 +11,7 @@ export type PeerMessage =
   | { type: 'pauseStart'; remainingSec: number }
   | { type: 'pauseEnd' }
   | { type: 'scoreDelta'; self: number; peer: number; note: string }
-  | { type: 'typing'; isTyping: boolean };
+  | { type: 'typing'; isTyping: boolean }
+  | { type: 'mouseMove'; nx: number; ny: number };
 
 export type Role = 'host' | 'guest';
