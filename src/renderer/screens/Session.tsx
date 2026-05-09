@@ -19,6 +19,7 @@ import { SignalingClient } from '../net/signaling';
 import { PeerConnection } from '../net/peer';
 import type { PeerMessage } from '../net/protocol';
 import { DEFAULT_HOTKEYS, LOOK_MODIFIER_OPTIONS, type LookModifier, useHotkeys } from '../game/hotkeys';
+import { useFreeLook } from '../game/useFreeLook';
 import { useScoreStore } from '../game/scoreStore';
 import { isSlacking } from '../game/appClassifier';
 import { SCORING } from '../game/scoring';
@@ -34,31 +35,18 @@ type Props = {
 const GUEST_SLOT = 0;
 const HOST_SLOT  = 1;
 const IDLE_THRESHOLD_SEC = 120;
-const LOOK_STORAGE_KEY = 'coworker.lookModifier';
 const QUIT_PHRASE = 'im a chicken, buk buk';
 const SCREEN_MODE_HOTKEY = 'm';
-
-function readLookModifier(): LookModifier {
-  if (typeof window === 'undefined') return 'Alt';
-  const saved = window.localStorage.getItem(LOOK_STORAGE_KEY);
-  if (saved && LOOK_MODIFIER_OPTIONS.includes(saved as LookModifier)) {
-    return saved as LookModifier;
-  }
-  return 'Alt';
-}
 
 export function Session({ cfg, onFinish, onQuit }: Props) {
   const sessionRoom = `${cfg.room}:session`;
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const freeLookRef = useRef({ enabled: false, yaw: 0, pitch: 0 });
-  const draggingRef = useRef(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [peeking, setPeeking] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('overhead');
-  const [lookModifier, setLookModifier] = useState<LookModifier>(() => readLookModifier());
-  const [lookHeld, setLookHeld] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { freeLookRef, draggingRef, lookModifier, setLookModifier, lookHeld, onCanvasMouseDown, reset: resetFreeLook } = useFreeLook(menuOpen);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [envPickerOpen, setEnvPickerOpen] = useState(false);
   const [quitText, setQuitText] = useState('');
@@ -98,13 +86,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const selfLaptop = selfSeat.laptop;
   const peerLaptop = peerSeat.laptop;
 
-  function resetFreeLook() {
-    draggingRef.current = false;
-    freeLookRef.current.enabled = false;
-    freeLookRef.current.yaw = 0;
-    freeLookRef.current.pitch = 0;
-  }
-
   async function setScreenModeActive(active: boolean) {
     screenModeRef.current = active;
     setScreenMode(active);
@@ -116,10 +97,6 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     }
     await window.coworker?.window.setScreenMode(active);
   }
-
-  useEffect(() => {
-    window.localStorage.setItem(LOOK_STORAGE_KEY, lookModifier);
-  }, [lookModifier]);
 
   useEffect(() => {
     let mounted = true;
@@ -331,9 +308,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         return;
       }
 
-      if (menuOpen) return;
-
-      if (e.repeat) return;
+      if (menuOpen || e.repeat) return;
 
       if (e.key === 'v' || e.key === 'V') {
         setCameraMode((mode) => (mode === 'overhead' ? 'firstPerson' : 'overhead'));
@@ -342,49 +317,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
 
       if (e.key.toLowerCase() === SCREEN_MODE_HOTKEY) {
         void setScreenModeActive(true);
-        return;
-      }
-
-      if (e.key === lookModifier) {
-        setLookHeld(true);
-      }
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === lookModifier) {
-        setLookHeld(false);
-        resetFreeLook();
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
-  }, [lookModifier, menuOpen, screenMode]);
-
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (!draggingRef.current) return;
-      freeLookRef.current.enabled = true;
-      freeLookRef.current.yaw -= e.movementX * 0.004;
-      freeLookRef.current.pitch = Math.max(-1.1, Math.min(1.1, freeLookRef.current.pitch - e.movementY * 0.0035));
-    };
-
-    const onMouseUp = () => {
-      draggingRef.current = false;
-      if (!lookHeld) resetFreeLook();
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [lookHeld]);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen, screenMode]);
 
   useEffect(() => {
     const api = window.coworker;
@@ -529,13 +467,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   return (
     <div
       ref={rootRef}
-      onMouseDown={(e) => {
-        if (menuOpen) return;
-        if (!lookHeld) return;
-        if (e.button !== 0) return;
-        draggingRef.current = true;
-        freeLookRef.current.enabled = true;
-      }}
+      onMouseDown={onCanvasMouseDown}
       style={{
         width: '100vw',
         height: '100vh',

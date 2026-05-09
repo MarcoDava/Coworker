@@ -36,6 +36,9 @@ export function CameraRig({ mode, peeking, selfAnchor, peerAnchor, freeLookRef }
   const goalLook = useRef(new THREE.Vector3());
   const currentDir = useRef(new THREE.Vector3());
   const rightAxis = useRef(new THREE.Vector3());
+  const worldUp = useRef(new THREE.Vector3(0, 1, 0));
+  const desiredDir = useRef(new THREE.Vector3());
+  const lookTarget = useRef(new THREE.Vector3());
 
   useFrame((_, dt) => {
     if (mode === 'firstPerson') {
@@ -58,16 +61,15 @@ export function CameraRig({ mode, peeking, selfAnchor, peerAnchor, freeLookRef }
     }
 
     camera.getWorldDirection(currentDir.current);
-    const desiredDir = goalLook.current.clone().sub(camera.position).normalize();
+    desiredDir.current.copy(goalLook.current).sub(camera.position).normalize();
     if (freeLookRef?.current.enabled) {
-      const worldUp = new THREE.Vector3(0, 1, 0);
-      desiredDir.applyAxisAngle(worldUp, freeLookRef.current.yaw);
-      rightAxis.current.crossVectors(desiredDir, worldUp).normalize();
-      desiredDir.applyAxisAngle(rightAxis.current, freeLookRef.current.pitch);
+      desiredDir.current.applyAxisAngle(worldUp.current, freeLookRef.current.yaw);
+      rightAxis.current.crossVectors(desiredDir.current, worldUp.current).normalize();
+      desiredDir.current.applyAxisAngle(rightAxis.current, freeLookRef.current.pitch);
     }
     const turnSpeed = mode === 'firstPerson' ? 5.5 : 4.2;
-    const blended = currentDir.current.lerp(desiredDir, Math.min(1, dt * turnSpeed)).normalize();
-    camera.lookAt(camera.position.clone().add(blended));
+    const blended = currentDir.current.lerp(desiredDir.current, Math.min(1, dt * turnSpeed)).normalize();
+    camera.lookAt(lookTarget.current.copy(camera.position).add(blended));
   });
   return null;
 }
