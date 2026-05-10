@@ -1,4 +1,7 @@
+import { Canvas } from '@react-three/fiber';
 import { useScoreStore } from '../game/scoreStore';
+import { Avatar } from '../scene/Avatar';
+import { DEFAULT_APPEARANCE, loadAppearance } from '../data/skins';
 
 type Props = { onRematch: () => void; onExit: () => void };
 
@@ -6,6 +9,8 @@ export function Scoreboard({ onRematch, onExit }: Props) {
   const { selfScore, peerScore, log } = useScoreStore();
   const youWon = selfScore > peerScore;
   const tie = selfScore === peerScore;
+  const appearance = loadAppearance() ?? DEFAULT_APPEARANCE;
+  const selfMood = tie ? undefined : youWon ? 'victory' as const : 'defeat' as const;
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
@@ -20,6 +25,23 @@ export function Scoreboard({ onRematch, onExit }: Props) {
               <span style={{ background: 'linear-gradient(90deg,#ffb7c3,#ff7a8a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>you lost</span>
             )}
           </h1>
+        </div>
+
+        <div style={{ height: 200, borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+          <Canvas camera={{ position: [0, 1.4, 2.2], fov: 42 }} style={{ background: 'transparent' }}>
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[2, 4, 2]} intensity={1.2} />
+            <Avatar
+              position={[0, 0, 0]}
+              rotationY={0}
+              color={appearance.bodyColor}
+              skinColor={appearance.skinTone}
+              hairColor={appearance.hairColor}
+              eyeColor={appearance.eyeColor}
+              chairColor={appearance.chairColor}
+              mood={selfMood}
+            />
+          </Canvas>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
