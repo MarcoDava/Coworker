@@ -20,7 +20,7 @@ type ClientMessage =
   | { type: 'join'; room: string; id: string; role?: PeerRole; profile?: LobbyProfile }
   | { type: 'signal'; to: string; payload: unknown }
   | { type: 'profile:update'; profile: LobbyProfile }
-  | { type: 'room:start'; durationMin: number };
+  | { type: 'room:start'; durationMin: number; pauseCap: number; pauseDurationSec: number };
 
 const rooms = new Map<string, RoomPeer[]>();
 const wss = new WebSocketServer({ port: PORT });
@@ -107,7 +107,7 @@ wss.on('connection', (ws) => {
       const hostId = hostIdFor(peers);
       if (peerId !== hostId) return;
       for (const peer of peers) {
-        sendJson(peer.ws, { type: 'session:start', durationMin: msg.durationMin });
+        sendJson(peer.ws, { type: 'session:start', durationMin: msg.durationMin, pauseCap: msg.pauseCap, pauseDurationSec: msg.pauseDurationSec });
       }
       return;
     }

@@ -1,4 +1,5 @@
 import type { ActiveWindowInfo } from '../../preload/index';
+import type { AppList } from '../game/appClassifier';
 
 export type PeerMessage =
   | { type: 'activeWindow'; info: ActiveWindowInfo }
@@ -12,6 +13,7 @@ export type PeerMessage =
   | { type: 'pauseEnd' }
   | { type: 'scoreDelta'; self: number; peer: number; note: string }
   | { type: 'typing'; isTyping: boolean }
-  | { type: 'mouseMove'; nx: number; ny: number };
+  | { type: 'mouseMove'; nx: number; ny: number }
+  | { type: 'appList'; list: AppList };
 
 export type Role = 'host' | 'guest';

@@ -14,6 +14,8 @@ export type LobbyConfig = {
   room: string;
   role: 'host' | 'guest';
   durationMin: number;
+  pauseCap: number;
+  pauseDurationSec: number;
   signalingUrl: string;
   appearance: AvatarAppearance;
   peerAppearance: AvatarAppearance;
@@ -115,6 +117,8 @@ export function Lobby({ onStart }: Props) {
   const [sceneEnv, setSceneEnv] = useState<SceneEnv>(() => loadSceneEnv());
   const [charScreenOpen, setCharScreenOpen] = useState(false);
   const [envPickerOpen, setEnvPickerOpen] = useState(false);
+  const [pauseCap, setPauseCap] = useState(2);
+  const [pauseDurationSec, setPauseDurationSec] = useState(180);
 
   const role = mode === 'create' ? 'host' : 'guest';
   const profile = useMemo<LobbyProfile>(
@@ -201,6 +205,8 @@ export function Lobby({ onStart }: Props) {
           room: room.trim(),
           role,
           durationMin: message.durationMin,
+          pauseCap: message.pauseCap,
+          pauseDurationSec: message.pauseDurationSec,
           signalingUrl: signalingUrl.trim(),
           appearance,
           peerAppearance,
@@ -345,7 +351,7 @@ export function Lobby({ onStart }: Props) {
                       className="primary"
                       style={primaryButtonStyle}
                       disabled={!queueReady || !isLeader}
-                      onClick={() => clientRef.current?.startSession(duration)}
+                      onClick={() => clientRef.current?.startSession(duration, pauseCap, pauseDurationSec)}
                     >
                       {isLeader ? 'Launch Session' : 'Waiting For Host'}
                     </button>
@@ -513,6 +519,28 @@ export function Lobby({ onStart }: Props) {
                   <span style={{ color: 'var(--text-mute)', fontSize: 12 }}>shared across the pair</span>
                 </div>
                 <AppListEditor />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Pause cap</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={pauseCap}
+                      onChange={(e) => setPauseCap(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Pause duration (sec)</span>
+                    <input
+                      type="number"
+                      min={30}
+                      max={600}
+                      value={pauseDurationSec}
+                      onChange={(e) => setPauseDurationSec(Math.max(30, Math.min(600, Number(e.target.value) || 30)))}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           </div>

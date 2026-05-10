@@ -67,6 +67,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const peerRef = useRef<PeerConnection | null>(null);
   const screenModeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastIdlePenaltyRef = useRef(0);
   const selfMouseRef = useRef({ nx: 0.5, ny: 0.5, active: false });
   const peerMouseRef = useRef({ nx: 0.5, ny: 0.5, active: false });
   const peerMouseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,6 +79,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const appList = useScoreStore((s) => s.appList);
   const applyDelta = useScoreStore((s) => s.applyDelta);
   const markPause = useScoreStore((s) => s.markPause);
+  const setPauseConfig = useScoreStore((s) => s.setPauseConfig);
   const selfSlot = cfg.role === 'host' ? HOST_SLOT : GUEST_SLOT;
   const peerSlot = cfg.role === 'host' ? GUEST_SLOT : HOST_SLOT;
   const layout = SEAT_LAYOUTS[sceneEnv];
@@ -85,6 +87,11 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const peerSeat = layout[peerSlot];
   const selfLaptop = selfSeat.laptop;
   const peerLaptop = peerSeat.laptop;
+
+  useEffect(() => {
+    setPauseConfig(cfg.pauseCap, cfg.pauseDurationSec);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function setScreenModeActive(active: boolean) {
     screenModeRef.current = active;
@@ -124,7 +131,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     const handlers = {
       onRemoteStream: (stream: MediaStream) => setRemoteStream(stream),
       onData: (message: PeerMessage) => handlePeerMessage(message),
-      onConnect: () => {},
+      onConnect: () => {
+        if (cfg.role === 'host') {
+          const list = useScoreStore.getState().appList;
+          peerRef.current?.send({ type: 'appList', list });
+        }
+      },
       onClose: () => {},
     };
 
@@ -198,8 +210,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
 
   useEffect(() => {
     if (peerIdleSec > IDLE_THRESHOLD_SEC && !pausedByPeer) {
-      applyDelta(-SCORING.idleTick, SCORING.idleTick, 'peer idle');
-      peerRef.current?.send({ type: 'scoreDelta', self: SCORING.idleTick, peer: 0, note: 'idle' });
+      const now = Date.now();
+      if (now - lastIdlePenaltyRef.current >= 60_000) {
+        lastIdlePenaltyRef.current = now;
+        applyDelta(-SCORING.idleTick, SCORING.idleTick, 'peer idle');
+        peerRef.current?.send({ type: 'scoreDelta', self: SCORING.idleTick, peer: -SCORING.idleTick, note: 'idle' });
+      }
     }
   }, [peerIdleSec, pausedByPeer, applyDelta]);
 
@@ -355,6 +371,10 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       } else {
         applyDelta(SCORING.unjustCalloutRejected, 0, 'reason rejected');
       }
+      return;
+    }
+    if (message.type === 'appList') {
+      useScoreStore.getState().setAppList(message.list);
       return;
     }
     if (message.type === 'pauseStart') {
