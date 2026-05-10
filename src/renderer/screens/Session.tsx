@@ -8,6 +8,7 @@ import { SpaceStation } from '../scene/SpaceStation';
 import { Train } from '../scene/Train';
 import { Skyscraper } from '../scene/Skyscraper';
 import { Laptop } from '../scene/Laptop';
+import { FocusTree } from '../scene/FocusTree';
 import { Avatar } from '../scene/Avatar';
 import { CameraRig, type CameraMode } from '../scene/Camera';
 import { EnvironmentPicker } from '../ui/EnvironmentPicker';
@@ -537,6 +538,20 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         />
         {cfg.playerCount > 1 && !peerLeft && (
           <Laptop position={peerLaptop} rotationY={0} stream={remoteStream} paused={pausedByPeer} label="friend" />
+        )}
+        <FocusTree
+          laptopPosition={selfLaptop}
+          growth={1 - secondsLeft / Math.max(1, cfg.durationMin * 60)}
+          withered={isPaused}
+          side={1}
+        />
+        {cfg.playerCount > 1 && !peerLeft && (
+          <FocusTree
+            laptopPosition={peerLaptop}
+            growth={1 - secondsLeft / Math.max(1, cfg.durationMin * 60)}
+            withered={pausedByPeer || peerIdleSec > IDLE_THRESHOLD_SEC}
+            side={-1}
+          />
         )}
         {cameraMode !== 'firstPerson' && (
           <Avatar
