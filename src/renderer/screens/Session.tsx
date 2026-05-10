@@ -9,6 +9,7 @@ import { Train } from '../scene/Train';
 import { Skyscraper } from '../scene/Skyscraper';
 import { Laptop } from '../scene/Laptop';
 import { FocusTree } from '../scene/FocusTree';
+import { CoffeeMug } from '../scene/CoffeeMug';
 import { Avatar } from '../scene/Avatar';
 import { AvatarLabel } from '../scene/AvatarLabel';
 import { EmoteBubble } from '../scene/EmoteBubble';
@@ -570,13 +571,17 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           withered={isPaused}
           side={1}
         />
+        <CoffeeMug laptopPosition={selfLaptop} color={cfg.appearance.bodyColor} side={-1} />
         {cfg.playerCount > 1 && !peerLeft && (
-          <FocusTree
-            laptopPosition={peerLaptop}
-            growth={1 - secondsLeft / Math.max(1, cfg.durationMin * 60)}
-            withered={pausedByPeer || peerIdleSec > IDLE_THRESHOLD_SEC}
-            side={-1}
-          />
+          <>
+            <FocusTree
+              laptopPosition={peerLaptop}
+              growth={1 - secondsLeft / Math.max(1, cfg.durationMin * 60)}
+              withered={pausedByPeer || peerIdleSec > IDLE_THRESHOLD_SEC}
+              side={1}
+            />
+            <CoffeeMug laptopPosition={peerLaptop} color={cfg.peerAppearance.bodyColor} side={-1} />
+          </>
         )}
         {cameraMode !== 'firstPerson' && (
           <Avatar
