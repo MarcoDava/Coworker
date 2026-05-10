@@ -69,6 +69,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const screenModeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastIdlePenaltyRef = useRef(0);
+  const peerPauseEndsAtRef = useRef<number | null>(null);
+  const [peerPauseSecsLeft, setPeerPauseSecsLeft] = useState<number | null>(null);
   const selfMouseRef = useRef({ nx: 0.5, ny: 0.5, active: false });
   const peerMouseRef = useRef({ nx: 0.5, ny: 0.5, active: false });
   const peerMouseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -179,6 +181,15 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
 
     return () => clearInterval(id);
   }, [onFinish, isPaused]);
+
+  useEffect(() => {
+    if (!pausedByPeer) return;
+    const id = setInterval(() => {
+      if (!peerPauseEndsAtRef.current) return;
+      setPeerPauseSecsLeft(Math.max(0, Math.ceil((peerPauseEndsAtRef.current - Date.now()) / 1000)));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [pausedByPeer]);
 
   useEffect(() => {
     const api = window.coworker;
@@ -379,10 +390,14 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     }
     if (message.type === 'pauseStart') {
       markPause('peer', true);
+      peerPauseEndsAtRef.current = Date.now() + message.remainingSec * 1000;
+      setPeerPauseSecsLeft(message.remainingSec);
       return;
     }
     if (message.type === 'pauseEnd') {
       markPause('peer', false);
+      peerPauseEndsAtRef.current = null;
+      setPeerPauseSecsLeft(null);
       return;
     }
     if (message.type === 'scoreDelta') {
@@ -629,6 +644,23 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           }}
         >
           paused - press P to resume
+        </div>
+      )}
+
+      {(!screenMode || screenHudVisible) && pausedByPeer && (
+        <div
+          style={{
+            ...pillStyle,
+            left: 'auto',
+            right: 20,
+            top: 60,
+            transform: 'none',
+            background: 'rgba(180,140,255,0.12)',
+            border: '1px solid rgba(180,140,255,0.5)',
+            color: 'rgba(200,170,255,1)',
+          }}
+        >
+          friend paused{peerPauseSecsLeft !== null ? ` · ${peerPauseSecsLeft}s` : ''}
         </div>
       )}
 
