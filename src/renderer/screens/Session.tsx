@@ -41,6 +41,12 @@ type Props = {
 // Slot indices within SEAT_LAYOUTS: guest=0 (left), host=1 (right)
 const GUEST_SLOT = 0;
 const HOST_SLOT  = 1;
+
+function emoteMood(kind: EmoteKind): 'victory' | 'defeat' | undefined {
+  if (kind === 'wave' || kind === 'nice' || kind === 'lockin' || kind === 'gg') return 'victory';
+  if (kind === 'rip' || kind === 'oof') return 'defeat';
+  return undefined;
+}
 const IDLE_THRESHOLD_SEC = 120;
 const QUIT_PHRASE = 'im a chicken, buk buk';
 const SCREEN_MODE_HOTKEY = 'm';
@@ -74,6 +80,8 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [emoteWheelOpen, setEmoteWheelOpen] = useState(false);
   const [selfEmote, setSelfEmote] = useState<{ kind: EmoteKind; ts: number } | null>(null);
   const [peerEmote, setPeerEmote] = useState<{ kind: EmoteKind; ts: number } | null>(null);
+  const [selfEmoteMood, setSelfEmoteMood] = useState<'victory' | 'defeat' | undefined>(undefined);
+  const [peerEmoteMood, setPeerEmoteMood] = useState<'victory' | 'defeat' | undefined>(undefined);
   const lastEmoteTsRef = useRef(0);
 
   const peerRef = useRef<PeerConnection | null>(null);
@@ -431,6 +439,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     }
     if (message.type === 'emote') {
       setPeerEmote({ kind: message.kind, ts: message.ts });
+      setPeerEmoteMood(emoteMood(message.kind));
     }
   }
 
@@ -439,8 +448,21 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     if (now - lastEmoteTsRef.current < 600) return; // simple cooldown / spam guard
     lastEmoteTsRef.current = now;
     setSelfEmote({ kind, ts: now });
+    setSelfEmoteMood(emoteMood(kind));
     peerRef.current?.send({ type: 'emote', kind, ts: now });
   }
+
+  // Reset transient emote-driven moods after the bubble fades.
+  useEffect(() => {
+    if (!selfEmoteMood) return;
+    const id = setTimeout(() => setSelfEmoteMood(undefined), 1800);
+    return () => clearTimeout(id);
+  }, [selfEmoteMood, selfEmote?.ts]);
+  useEffect(() => {
+    if (!peerEmoteMood) return;
+    const id = setTimeout(() => setPeerEmoteMood(undefined), 1800);
+    return () => clearTimeout(id);
+  }, [peerEmoteMood, peerEmote?.ts]);
 
   useHotkeys(
     DEFAULT_HOTKEYS,
@@ -594,6 +616,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             rotationY={Math.PI}
             isTyping={selfTyping}
             focused={screenMode}
+            mood={selfEmoteMood}
             lookRef={freeLookRef}
             mouseRef={selfMouseRef}
           />
@@ -609,6 +632,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             rotationY={Math.PI}
             isIdle={peerIdleSec > IDLE_THRESHOLD_SEC}
             isTyping={peerTyping}
+            mood={peerEmoteMood}
             trackCamera
             mouseRef={peerMouseRef}
           />
