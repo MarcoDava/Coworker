@@ -19,6 +19,7 @@ export type LobbyConfig = {
   signalingUrl: string;
   appearance: AvatarAppearance;
   peerAppearance: AvatarAppearance;
+  peerDisplayName: string;
   soloMode: boolean;
   playerCount: number;
 };
@@ -198,6 +199,7 @@ export function Lobby({ onStart }: Props) {
       if (message.type === 'session:start') {
         const peer = membersRef.current.find((m) => m.id !== selfId);
         const peerAppearance = peer?.profile.appearance ?? DEFAULT_APPEARANCE;
+        const peerDisplayName = peer?.profile.displayName?.trim() || 'friend';
         onStart({
           displayName: profile.displayName,
           bio: profile.bio,
@@ -210,6 +212,7 @@ export function Lobby({ onStart }: Props) {
           signalingUrl: signalingUrl.trim(),
           appearance,
           peerAppearance,
+          peerDisplayName,
           soloMode: false,
           playerCount: membersRef.current.length,
         });

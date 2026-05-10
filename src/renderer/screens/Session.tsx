@@ -10,6 +10,7 @@ import { Skyscraper } from '../scene/Skyscraper';
 import { Laptop } from '../scene/Laptop';
 import { FocusTree } from '../scene/FocusTree';
 import { Avatar } from '../scene/Avatar';
+import { AvatarLabel } from '../scene/AvatarLabel';
 import { CameraRig, type CameraMode } from '../scene/Camera';
 import { EnvironmentPicker } from '../ui/EnvironmentPicker';
 import { Timer } from '../ui/Timer';
@@ -581,6 +582,30 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             isTyping={peerTyping}
             trackCamera
             mouseRef={peerMouseRef}
+          />
+        )}
+        {cameraMode !== 'firstPerson' && (
+          <AvatarLabel
+            position={[selfLaptop[0], 0, selfLaptop[2] + selfSeat.avatarZOffset]}
+            name={cfg.displayName}
+            color={cfg.appearance.bodyColor}
+            status={isPaused ? 'paused' : selfTyping ? 'typing' : undefined}
+          />
+        )}
+        {cfg.playerCount > 1 && !peerLeft && (
+          <AvatarLabel
+            position={[peerLaptop[0], 0, peerLaptop[2] + peerSeat.avatarZOffset]}
+            name={cfg.peerDisplayName}
+            color={cfg.peerAppearance.bodyColor}
+            status={
+              pausedByPeer
+                ? 'paused'
+                : peerIdleSec > IDLE_THRESHOLD_SEC
+                  ? 'idle'
+                  : peerTyping
+                    ? 'typing'
+                    : undefined
+            }
           />
         )}
         <CameraRig
