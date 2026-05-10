@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LobbyConfig } from './Lobby';
 import { loadSceneEnv, saveSceneEnv, type SceneEnv } from '../data/skins';
+import { addFocusSec, recordSessionCompleted } from '../data/lifetimeStats';
 import { SEAT_LAYOUTS } from '../data/seatLayouts';
 import { Library } from '../scene/Library';
 import { SpaceStation } from '../scene/SpaceStation';
@@ -191,10 +192,15 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       setSecondsLeft((seconds) => {
         if (seconds <= 1) {
           clearInterval(id);
+          recordSessionCompleted();
           setTimeout(onFinish, 500);
           return 0;
         }
-        return isPaused ? seconds : seconds - 1;
+        if (!isPaused) {
+          addFocusSec(1);
+          return seconds - 1;
+        }
+        return seconds;
       });
     }, 1000);
 

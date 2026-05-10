@@ -1,14 +1,16 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Float, RoundedBox } from '@react-three/drei';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Group } from 'three';
 import * as THREE from 'three';
 import { AboutModal } from '../ui/AboutModal';
+import { formatFocusDuration, loadLifetimeStats } from '../data/lifetimeStats';
 
 type Props = { onEnter: () => void };
 
 export function Hero({ onEnter }: Props) {
   const [showAbout, setShowAbout] = useState(false);
+  const stats = useMemo(() => loadLifetimeStats(), []);
 
   return (
     <div style={{ position: 'relative', height: '100%', width: '100%', overflow: 'hidden' }}>
@@ -87,6 +89,23 @@ export function Hero({ onEnter }: Props) {
             ▶  Get started
           </button>
         </div>
+
+        {stats.focusSec > 0 && (
+          <div
+            style={{
+              marginTop: 28,
+              display: 'flex',
+              gap: 8,
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.55)',
+              letterSpacing: 0.5,
+            }}
+          >
+            <StatBadge label="locked-in time" value={formatFocusDuration(stats.focusSec)} />
+            <StatBadge label="sessions" value={String(stats.sessions)} />
+          </div>
+        )}
       </div>
 
       <button
@@ -104,6 +123,25 @@ export function Hero({ onEnter }: Props) {
       >
         About
       </button>
+    </div>
+  );
+}
+
+function StatBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '4px 10px',
+        borderRadius: 999,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.10)',
+      }}
+    >
+      <span style={{ opacity: 0.7 }}>{label}</span>
+      <span style={{ color: '#fff', fontWeight: 600 }}>{value}</span>
     </div>
   );
 }
