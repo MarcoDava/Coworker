@@ -11,6 +11,8 @@ import { Laptop } from '../scene/Laptop';
 import { FocusTree } from '../scene/FocusTree';
 import { Avatar } from '../scene/Avatar';
 import { AvatarLabel } from '../scene/AvatarLabel';
+import { EmoteBubble } from '../scene/EmoteBubble';
+import { EmoteWheel } from '../ui/EmoteWheel';
 import { CameraRig, type CameraMode } from '../scene/Camera';
 import { EnvironmentPicker } from '../ui/EnvironmentPicker';
 import { Timer } from '../ui/Timer';
@@ -19,7 +21,7 @@ import { ReasonPrompt } from '../ui/ReasonPrompt';
 import { DisputeToast } from '../ui/DisputeToast';
 import { SignalingClient } from '../net/signaling';
 import { PeerConnection } from '../net/peer';
-import type { PeerMessage } from '../net/protocol';
+import type { EmoteKind, PeerMessage } from '../net/protocol';
 import { DEFAULT_HOTKEYS, LOOK_MODIFIER_OPTIONS, type LookModifier, useHotkeys } from '../game/hotkeys';
 import { useFreeLook } from '../game/useFreeLook';
 import { isEditableTarget } from '../game/inputUtils';
@@ -66,6 +68,10 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [peerLeft, setPeerLeft] = useState(false);
   const [musicVolume, setMusicVolume] = useState(0.25);
   const [sceneEnv, setSceneEnv] = useState<SceneEnv>(() => loadSceneEnv());
+  const [emoteWheelOpen, setEmoteWheelOpen] = useState(false);
+  const [selfEmote, setSelfEmote] = useState<{ kind: EmoteKind; ts: number } | null>(null);
+  const [peerEmote, setPeerEmote] = useState<{ kind: EmoteKind; ts: number } | null>(null);
+  const lastEmoteTsRef = useRef(0);
 
   const peerRef = useRef<PeerConnection | null>(null);
   const screenModeRef = useRef(false);
@@ -344,6 +350,11 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
         return;
       }
 
+      if (e.key.toLowerCase() === 'e') {
+        if (!screenMode) setEmoteWheelOpen(true);
+        return;
+      }
+
       if (e.key.toLowerCase() === SCREEN_MODE_HOTKEY) {
         void setScreenModeActive(true);
       }
@@ -415,6 +426,17 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       if (peerMouseTimeout.current) clearTimeout(peerMouseTimeout.current);
       peerMouseTimeout.current = setTimeout(() => { peerMouseRef.current.active = false; }, 1500);
     }
+    if (message.type === 'emote') {
+      setPeerEmote({ kind: message.kind, ts: message.ts });
+    }
+  }
+
+  function sendEmote(kind: EmoteKind) {
+    const now = Date.now();
+    if (now - lastEmoteTsRef.current < 600) return; // simple cooldown / spam guard
+    lastEmoteTsRef.current = now;
+    setSelfEmote({ kind, ts: now });
+    peerRef.current?.send({ type: 'emote', kind, ts: now });
   }
 
   useHotkeys(
@@ -473,10 +495,10 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     if (screenMode) return 'screen mode active · Esc exits · Ctrl+Shift+H toggles overlay';
     if (isPaused) return 'paused - press P again to resume';
     if (cameraMode === 'firstPerson') {
-      return `hold ${lookModifier} and drag to look around · V to switch view · M for work mode`;
+      return `hold ${lookModifier} and drag to look · V switch view · E emote · M work mode`;
     }
     if (peeking) return 'peeking - press SPACE to call out';
-    return `hold ${lookModifier} + drag to look · Tab to peek · V switch view · M work mode`;
+    return `hold ${lookModifier} + drag · Tab peek · V view · E emote · M work mode`;
   }, [cameraMode, lookModifier, peeking, screenMode, isPaused]);
 
   const quitReady = quitText.trim().toLowerCase() === QUIT_PHRASE;
@@ -606,6 +628,20 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                     ? 'typing'
                     : undefined
             }
+          />
+        )}
+        {cameraMode !== 'firstPerson' && (
+          <EmoteBubble
+            position={[selfLaptop[0], 0, selfLaptop[2] + selfSeat.avatarZOffset]}
+            emote={selfEmote}
+            color={cfg.appearance.bodyColor}
+          />
+        )}
+        {cfg.playerCount > 1 && !peerLeft && (
+          <EmoteBubble
+            position={[peerLaptop[0], 0, peerLaptop[2] + peerSeat.avatarZOffset]}
+            emote={peerEmote}
+            color={cfg.peerAppearance.bodyColor}
           />
         )}
         <CameraRig
@@ -863,6 +899,12 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
           onClose={() => setEnvPickerOpen(false)}
         />
       )}
+
+      <EmoteWheel
+        open={emoteWheelOpen}
+        onSelect={sendEmote}
+        onClose={() => setEmoteWheelOpen(false)}
+      />
     </div>
   );
 }

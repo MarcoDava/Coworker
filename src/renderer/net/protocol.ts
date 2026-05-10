@@ -1,6 +1,9 @@
 import type { ActiveWindowInfo } from '../../preload/index';
 import type { AppList } from '../game/appClassifier';
 
+export const EMOTES = ['wave', 'nice', 'lockin', 'gg', 'rip', 'oof'] as const;
+export type EmoteKind = (typeof EMOTES)[number];
+
 export type PeerMessage =
   | { type: 'activeWindow'; info: ActiveWindowInfo }
   | { type: 'idle'; idleSeconds: number }
@@ -14,6 +17,7 @@ export type PeerMessage =
   | { type: 'scoreDelta'; self: number; peer: number; note: string }
   | { type: 'typing'; isTyping: boolean }
   | { type: 'mouseMove'; nx: number; ny: number }
-  | { type: 'appList'; list: AppList };
+  | { type: 'appList'; list: AppList }
+  | { type: 'emote'; kind: EmoteKind; ts: number };
 
 export type Role = 'host' | 'guest';
