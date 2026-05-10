@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LobbyConfig } from './Lobby';
 import { loadSceneEnv, saveSceneEnv, type SceneEnv } from '../data/skins';
 import { addFocusSec, recordSessionCompleted } from '../data/lifetimeStats';
+import { MUSIC_STATIONS, loadMusicStation, saveMusicStation, type MusicStation } from '../data/musicStations';
 import { SEAT_LAYOUTS } from '../data/seatLayouts';
 import { Library } from '../scene/Library';
 import { SpaceStation } from '../scene/SpaceStation';
@@ -77,6 +78,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerLeft, setPeerLeft] = useState(false);
   const [musicVolume, setMusicVolume] = useState(0.25);
+  const [musicStation, setMusicStation] = useState<MusicStation>(() => loadMusicStation());
   const [sceneEnv, setSceneEnv] = useState<SceneEnv>(() => loadSceneEnv());
   const [emoteWheelOpen, setEmoteWheelOpen] = useState(false);
   const [selfEmote, setSelfEmote] = useState<{ kind: EmoteKind; ts: number } | null>(null);
@@ -327,8 +329,14 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
   }, []);
 
   useEffect(() => {
+    const url = MUSIC_STATIONS[musicStation].url;
+    if (!url) {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      return;
+    }
     const audio = new Audio();
-    audio.src = 'https://stream.zeno.fm/f3wvbbqmdg8uv';
+    audio.src = url;
     audio.loop = true;
     audio.volume = musicVolume;
     audioRef.current = audio;
@@ -339,7 +347,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
       audioRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [musicStation]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = musicVolume;
@@ -877,6 +885,24 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
                 <div style={{ color: 'var(--text-mute)', fontSize: 12 }}>
                   `Fn` is not offered here because operating systems usually intercept it before Electron can detect it reliably.
                 </div>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text)' }}>
+                  Music station
+                  <select
+                    value={musicStation}
+                    onChange={(e) => {
+                      const next = e.target.value as MusicStation;
+                      setMusicStation(next);
+                      saveMusicStation(next);
+                    }}
+                    style={menuSelect}
+                  >
+                    {(Object.keys(MUSIC_STATIONS) as MusicStation[]).map((key) => (
+                      <option key={key} value={key}>
+                        {MUSIC_STATIONS[key].label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, color: 'var(--text)' }}>
                   Music volume
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
