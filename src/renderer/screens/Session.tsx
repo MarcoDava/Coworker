@@ -20,6 +20,7 @@ import { PeerConnection } from '../net/peer';
 import type { PeerMessage } from '../net/protocol';
 import { DEFAULT_HOTKEYS, LOOK_MODIFIER_OPTIONS, type LookModifier, useHotkeys } from '../game/hotkeys';
 import { useFreeLook } from '../game/useFreeLook';
+import { isEditableTarget } from '../game/inputUtils';
 import { useScoreStore } from '../game/scoreStore';
 import { isSlacking } from '../game/appClassifier';
 import { SCORING } from '../game/scoring';
@@ -39,7 +40,7 @@ const QUIT_PHRASE = 'im a chicken, buk buk';
 const SCREEN_MODE_HOTKEY = 'm';
 
 export function Session({ cfg, onFinish, onQuit }: Props) {
-  const sessionRoom = `${cfg.room}:session`;
+  const sessionRoom = useMemo(() => `${cfg.room}:session`, [cfg.room]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -310,8 +311,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (isEditableTarget(e.target)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         if (screenMode) {

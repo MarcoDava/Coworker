@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { LOOK_MODIFIER_OPTIONS, type LookModifier } from './hotkeys';
+import { isEditableTarget } from './inputUtils';
 
 const LOOK_STORAGE_KEY = 'coworker.lookModifier';
+const PITCH_CLAMP_MAX = 1.1;
 
 function readLookModifier(): LookModifier {
   if (typeof window === 'undefined') return 'Alt';
@@ -29,12 +31,8 @@ export function useFreeLook(disabled: boolean) {
   }, [lookModifier]);
 
   useEffect(() => {
-    const isInput = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
-    };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (disabled || e.repeat || isInput(e)) return;
+      if (disabled || e.repeat || isEditableTarget(e.target)) return;
       if (e.key === lookModifier) setLookHeld(true);
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -56,7 +54,7 @@ export function useFreeLook(disabled: boolean) {
       if (!draggingRef.current) return;
       freeLookRef.current.enabled = true;
       freeLookRef.current.yaw -= e.movementX * 0.004;
-      freeLookRef.current.pitch = Math.max(-1.1, Math.min(1.1, freeLookRef.current.pitch - e.movementY * 0.0035));
+      freeLookRef.current.pitch = Math.max(-PITCH_CLAMP_MAX, Math.min(PITCH_CLAMP_MAX, freeLookRef.current.pitch - e.movementY * 0.0035));
     };
     const onMouseUp = () => {
       draggingRef.current = false;

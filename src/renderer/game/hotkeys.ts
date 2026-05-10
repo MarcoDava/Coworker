@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isEditableTarget } from './inputUtils';
 
 export type HotkeyConfig = {
   peek: string; // e.g. 'Alt'
@@ -25,18 +26,14 @@ export function useHotkeys(
   },
 ) {
   useEffect(() => {
-    const isInput = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
-    };
     const down = (e: KeyboardEvent) => {
-      if (e.repeat || isInput(e)) return;
+      if (e.repeat || isEditableTarget(e.target)) return;
       if (matchesKey(e, cfg.peek)) { e.preventDefault(); handlers.onPeekDown(); }
       else if (matchesKey(e, cfg.callout)) { e.preventDefault(); handlers.onCallout(); }
       else if (matchesKey(e, cfg.pause)) handlers.onPause();
     };
     const up = (e: KeyboardEvent) => {
-      if (isInput(e)) return;
+      if (isEditableTarget(e.target)) return;
       if (matchesKey(e, cfg.peek)) handlers.onPeekUp();
     };
     window.addEventListener('keydown', down, { capture: true });
