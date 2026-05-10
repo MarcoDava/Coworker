@@ -1,12 +1,57 @@
+import { useEffect, useState } from 'react';
 import { useScoreStore } from '../game/scoreStore';
+
+function formatStreak(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  if (m === 0) return `${s}s`;
+  if (m < 60) return `${m}m ${s.toString().padStart(2, '0')}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${(m % 60).toString().padStart(2, '0')}m`;
+}
 
 export function ScoreHUD() {
   const self = useScoreStore((s) => s.selfScore);
   const peer = useScoreStore((s) => s.peerScore);
+  const streakStartTs = useScoreStore((s) => s.streakStartTs);
+  const isPaused = useScoreStore((s) => s.isPaused);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const streakMs = isPaused ? 0 : now - streakStartTs;
+  const streakActive = streakMs > 30_000;
+
   return (
-    <div style={{ display: 'flex', gap: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: 14 }}>
-      <Chip label="you" value={self} color="var(--good)" />
-      <Chip label="friend" value={peer} color="var(--bad)" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'JetBrains Mono, monospace', fontSize: 14 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Chip label="you" value={self} color="var(--good)" />
+        <Chip label="friend" value={peer} color="var(--bad)" />
+      </div>
+      <div
+        style={{
+          display: 'inline-flex',
+          alignSelf: 'flex-start',
+          alignItems: 'center',
+          gap: 6,
+          padding: '4px 10px',
+          borderRadius: 999,
+          border: `1px solid ${streakActive ? 'var(--accent)' : 'var(--border)'}`,
+          background: streakActive ? 'rgba(124,108,255,0.10)' : 'rgba(255,255,255,0.03)',
+          color: streakActive ? 'var(--text)' : 'var(--text-dim)',
+          fontSize: 11,
+          letterSpacing: 0.5,
+          boxShadow: streakActive ? '0 0 14px rgba(124,108,255,0.20)' : 'none',
+          transition: 'all 200ms',
+        }}
+      >
+        <span style={{ opacity: 0.65 }}>streak</span>
+        <span style={{ fontWeight: 600 }}>{formatStreak(streakMs)}</span>
+      </div>
     </div>
   );
 }

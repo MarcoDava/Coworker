@@ -1,9 +1,35 @@
 import { Canvas } from '@react-three/fiber';
-import { useScoreStore } from '../game/scoreStore';
+import { useMemo } from 'react';
+import { useScoreStore, type ScoreLogEntry } from '../game/scoreStore';
 import { Avatar } from '../scene/Avatar';
 import { DEFAULT_APPEARANCE, loadAppearance } from '../data/skins';
 
 type Props = { onRematch: () => void; onExit: () => void };
+
+type Tally = {
+  calloutsLanded: number;
+  caughtSlacking: number;
+  idleLapses: number;
+  unjustCallouts: number;
+};
+
+function tallyLog(log: ScoreLogEntry[]): Tally {
+  const out: Tally = { calloutsLanded: 0, caughtSlacking: 0, idleLapses: 0, unjustCallouts: 0 };
+  for (const e of log) {
+    const note = e.note.toLowerCase();
+    if (note.startsWith('called out')) {
+      if (e.who === 'self' && e.delta > 0) out.calloutsLanded += 1;
+      if (e.who === 'self' && e.delta < 0) out.caughtSlacking += 1;
+    } else if (note.includes('got called out')) {
+      out.caughtSlacking += 1;
+    } else if (note.includes('idle')) {
+      out.idleLapses += 1;
+    } else if (note.includes('reason rejected') || note.includes('no reason')) {
+      out.unjustCallouts += 1;
+    }
+  }
+  return out;
+}
 
 export function Scoreboard({ onRematch, onExit }: Props) {
   const { selfScore, peerScore, log } = useScoreStore();
@@ -11,6 +37,7 @@ export function Scoreboard({ onRematch, onExit }: Props) {
   const tie = selfScore === peerScore;
   const appearance = loadAppearance() ?? DEFAULT_APPEARANCE;
   const selfMood = tie ? undefined : youWon ? 'victory' as const : 'defeat' as const;
+  const tally = useMemo(() => tallyLog(log), [log]);
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
@@ -47,6 +74,13 @@ export function Scoreboard({ onRematch, onExit }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <ScoreTile label="you" value={selfScore} color="var(--good)" winner={youWon} />
           <ScoreTile label="friend" value={peerScore} color="var(--bad)" winner={!youWon && !tie} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          <StatChip label="callouts landed" value={tally.calloutsLanded} hue="#7ae0a3" />
+          <StatChip label="caught slacking" value={tally.caughtSlacking} hue="#ff7a8a" />
+          <StatChip label="idle lapses" value={tally.idleLapses} hue="#ffc46b" />
+          <StatChip label="unjust callouts" value={tally.unjustCallouts} hue="#b48cff" />
         </div>
 
         <div
@@ -102,6 +136,31 @@ export function Scoreboard({ onRematch, onExit }: Props) {
           <button style={{ flex: 1, padding: '12px 16px' }} onClick={onExit}>Exit to lobby</button>
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+function StatChip({ label, value, hue }: { label: string; value: number; hue: string }) {
+  const dim = value === 0;
+  return (
+    <div
+      style={{
+        padding: '12px 14px',
+        background: 'var(--panel)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: `1px solid ${dim ? 'var(--border)' : hue}`,
+        borderRadius: 14,
+        boxShadow: dim ? 'none' : `0 0 18px ${hue}22`,
+        opacity: dim ? 0.55 : 1,
+      }}
+    >
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 700, color: dim ? 'var(--text-dim)' : hue }}>
+        {value}
+      </div>
+      <div style={{ color: 'var(--text-dim)', fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 2 }}>
+        {label}
       </div>
     </div>
   );
