@@ -19,6 +19,16 @@ const STEPS = [
     body: 'Hold Alt to peek at your partner\'s screen. If they\'re slacking, press Space to call them out and score a point. False calls cost you — so be sure.',
   },
   {
+    icon: '🌱',
+    title: 'Set an intent, watch it grow',
+    body: 'Type what you\'re working on in the lobby — your friend sees it as a thought bubble at session start. A small focus tree on your desk grows as the session goes; pause too much and it wilts.',
+  },
+  {
+    icon: '👋',
+    title: 'React without breaking flow',
+    body: 'Press E to open the emote wheel — wave, lock in, gg, or rip. Your friend\'s avatar reacts physically to whatever you send. No typing, no chat tab, no flow break.',
+  },
+  {
     icon: '⚡',
     title: 'Before you start',
     body: 'You\'ll need to run the signaling server once so both players can find each other. Check the lobby for setup instructions.',
