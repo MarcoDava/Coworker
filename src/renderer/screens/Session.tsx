@@ -12,6 +12,7 @@ import { FocusTree } from '../scene/FocusTree';
 import { Avatar } from '../scene/Avatar';
 import { AvatarLabel } from '../scene/AvatarLabel';
 import { EmoteBubble } from '../scene/EmoteBubble';
+import { GoalBubble } from '../scene/GoalBubble';
 import { EmoteWheel } from '../ui/EmoteWheel';
 import { CameraRig, type CameraMode } from '../scene/Camera';
 import { EnvironmentPicker } from '../ui/EnvironmentPicker';
@@ -45,6 +46,7 @@ const SCREEN_MODE_HOTKEY = 'm';
 
 export function Session({ cfg, onFinish, onQuit }: Props) {
   const sessionRoom = useMemo(() => `${cfg.room}:session`, [cfg.room]);
+  const sessionStartTs = useMemo(() => Date.now(), []);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -644,6 +646,22 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             color={cfg.peerAppearance.bodyColor}
           />
         )}
+        {cameraMode !== 'firstPerson' && cfg.sessionGoal && (
+          <GoalBubble
+            position={[selfLaptop[0], 0, selfLaptop[2] + selfSeat.avatarZOffset]}
+            goal={cfg.sessionGoal}
+            color={cfg.appearance.bodyColor}
+            startedAt={sessionStartTs}
+          />
+        )}
+        {cfg.playerCount > 1 && !peerLeft && cfg.peerSessionGoal && (
+          <GoalBubble
+            position={[peerLaptop[0], 0, peerLaptop[2] + peerSeat.avatarZOffset]}
+            goal={cfg.peerSessionGoal}
+            color={cfg.peerAppearance.bodyColor}
+            startedAt={sessionStartTs}
+          />
+        )}
         <CameraRig
           mode={cameraMode}
           peeking={peeking}
@@ -702,6 +720,22 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
             <br />
             friend · {peerActiveWindow?.app ?? '—'}
           </div>
+          {(cfg.sessionGoal || cfg.peerSessionGoal) && (
+            <div
+              style={{
+                marginTop: 4,
+                paddingTop: 8,
+                borderTop: '1px solid var(--border)',
+                color: 'var(--text-dim)',
+                fontSize: 11,
+                lineHeight: 1.5,
+                fontStyle: 'italic',
+              }}
+            >
+              {cfg.sessionGoal && <div>you: {cfg.sessionGoal}</div>}
+              {cfg.peerSessionGoal && <div>friend: {cfg.peerSessionGoal}</div>}
+            </div>
+          )}
         </div>
       )}
 

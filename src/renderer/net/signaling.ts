@@ -5,6 +5,8 @@ export type LobbyProfile = {
   bio: string;
   avatarSeed: string;
   appearance?: AvatarAppearance;
+  /** Session intent — what the user is working on this session (Focusmate-style). */
+  goal?: string;
 };
 
 export type LobbyMember = {

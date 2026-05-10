@@ -20,6 +20,10 @@ export type LobbyConfig = {
   appearance: AvatarAppearance;
   peerAppearance: AvatarAppearance;
   peerDisplayName: string;
+  /** Self-stated session intent (Focusmate-style "what are you working on"). */
+  sessionGoal: string;
+  /** Peer's stated session intent. */
+  peerSessionGoal: string;
   soloMode: boolean;
   playerCount: number;
 };
@@ -104,6 +108,7 @@ export function Lobby({ onStart }: Props) {
 
   const [displayName, setDisplayName] = useState('you');
   const [bio, setBio] = useState('');
+  const [sessionGoal, setSessionGoal] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [room, setRoom] = useState(randomCode());
   const [duration, setDuration] = useState(25);
@@ -128,8 +133,9 @@ export function Lobby({ onStart }: Props) {
       bio: bio.trim(),
       avatarSeed: avatarSeedRef.current,
       appearance,
+      goal: sessionGoal.trim(),
     }),
-    [bio, displayName, appearance]
+    [bio, displayName, appearance, sessionGoal]
   );
 
   const missing: string[] = [];
@@ -200,6 +206,7 @@ export function Lobby({ onStart }: Props) {
         const peer = membersRef.current.find((m) => m.id !== selfId);
         const peerAppearance = peer?.profile.appearance ?? DEFAULT_APPEARANCE;
         const peerDisplayName = peer?.profile.displayName?.trim() || 'friend';
+        const peerSessionGoal = peer?.profile.goal?.trim() || '';
         onStart({
           displayName: profile.displayName,
           bio: profile.bio,
@@ -213,6 +220,8 @@ export function Lobby({ onStart }: Props) {
           appearance,
           peerAppearance,
           peerDisplayName,
+          sessionGoal: profile.goal ?? '',
+          peerSessionGoal,
           soloMode: false,
           playerCount: membersRef.current.length,
         });
@@ -420,6 +429,17 @@ export function Lobby({ onStart }: Props) {
                     onChange={(e) => setBio(e.target.value.slice(0, 120))}
                     placeholder={fallbackBio(profile.avatarSeed)}
                     rows={3}
+                    style={textareaStyle}
+                  />
+                </label>
+
+                <label>
+                  Working on
+                  <textarea
+                    value={sessionGoal}
+                    onChange={(e) => setSessionGoal(e.target.value.slice(0, 100))}
+                    placeholder="ship the migration / draft the email / read chapter 4"
+                    rows={2}
                     style={textareaStyle}
                   />
                 </label>
