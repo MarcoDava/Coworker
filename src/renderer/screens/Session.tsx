@@ -30,6 +30,7 @@ import { DEFAULT_HOTKEYS, LOOK_MODIFIER_OPTIONS, type LookModifier, useHotkeys }
 import { useFreeLook } from '../game/useFreeLook';
 import { isEditableTarget } from '../game/inputUtils';
 import { useScoreStore } from '../game/scoreStore';
+import { playEmoteReceiveBlip, playEmoteSendBlip } from '../game/soundEffects';
 import { isSlacking } from '../game/appClassifier';
 import { SCORING } from '../game/scoring';
 import type { ActiveWindowInfo } from '../../preload/index';
@@ -454,6 +455,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     if (message.type === 'emote') {
       setPeerEmote({ kind: message.kind, ts: message.ts });
       setPeerEmoteMood(emoteMood(message.kind));
+      playEmoteReceiveBlip();
     }
   }
 
@@ -464,6 +466,7 @@ export function Session({ cfg, onFinish, onQuit }: Props) {
     setSelfEmote({ kind, ts: now });
     setSelfEmoteMood(emoteMood(kind));
     peerRef.current?.send({ type: 'emote', kind, ts: now });
+    playEmoteSendBlip();
   }
 
   // Reset transient emote-driven moods after the bubble fades.
